@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HashQuest: Laboratório</title>
+    <title>HashQuest</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,7 +15,8 @@
             <div class="intro-section">
                 <div class="intro-header">Contexto Real</div>
                 <p class="intro-p">
-                    Grandes sistemas (como Bancos de Dados e Motores de Busca) utilizam <strong>Tabelas de Dispersão (Hash Tables)</strong> para armazenar e recuperar informações instantaneamente, calculando o endereço exato de um dado.
+                    Grandes sistemas (como Bancos de Dados e Motores de Busca) precisam armazenar e recuperar informações instantaneamente. 
+                    Para isso, utilizam <strong>Tabelas de Dispersão (Hash Tables)</strong>.
                 </p>
             </div>
 
@@ -24,11 +25,10 @@
             </div>
 
             <div class="intro-section">
-                <div class="intro-header">Roteiro de Análise:</div>
-                <div class="intro-step"><span class="intro-icon">1️⃣</span><span>Selecione um <strong>Algoritmo</strong> no menu lateral.</span></div>
-                <div class="intro-step"><span class="intro-icon">2️⃣</span><span>Adicione um <strong>Lote de Dados</strong> e observe.</span></div>
-                <div class="intro-step"><span class="intro-icon">3️⃣</span><span>Abra o <strong>Relatório</strong> para ver a eficiência.</span></div>
-                <div class="intro-step"><span class="intro-icon">🔄</span><span>Troque o Algoritmo para <strong>comparar</strong> com os mesmos dados (Replay Automático).</span></div>
+                <div class="intro-header">Roteiro de Uso:</div>
+                <div class="intro-step"><span class="intro-icon">1️⃣</span><span>Use o <strong>Switch</strong> para escolher entre Laboratório ou Desafio.</span></div>
+                <div class="intro-step"><span class="intro-icon">2️⃣</span><span>Adicione um <strong>Lote de Dados</strong>.</span></div>
+                <div class="intro-step"><span class="intro-icon">3️⃣</span><span>Analise a eficiência no <strong>Relatório</strong>.</span></div>
             </div>
             
             <button class="btn-start" id="btnStartIntro">INICIAR SIMULAÇÃO</button>
@@ -55,12 +55,18 @@
 
     <div id="left-sidebar">
         <h2>
-            🔮 GRIMÓRIO DE HASH
+            🔮 GRIMÓRIO
             <button class="help-btn" id="btnHelp" title="Ver Instruções">?</button>
         </h2>
+
+        <div class="mode-switch-container sandbox" id="modeSwitch">
+            <div class="mode-slider"></div>
+            <div class="mode-option opt-sb">🧪 Lab</div>
+            <div class="mode-option opt-qs">⚔️ Quest</div>
+        </div>
         
         <div class="control-group">
-            <label>📜 1. Feitiço (Escolha o Algoritmo)</label>
+            <label>📜 Feitiço (Algoritmo)</label>
             <select id="algoSelect">
                 <option value="" disabled selected>-- SELECIONE --</option>
                 <option value="CHAINING">Encadeamento (Listas)</option>
@@ -70,19 +76,37 @@
             </select>
         </div>
 
-        <div class="control-group">
-            <label>🧪 2. Laboratório (Dados)</label>
-            <button id="btnBatch" class="btn-batch" disabled>🎲 Adicionar Lote (10 Itens)</button>
-            <button id="btnReport" class="btn-report" disabled>📄 Ver Relatório Atual</button>
+        <div id="controls-lab">
+            <div class="control-group">
+                <label>🧪 Laboratório</label>
+                <button id="btnBatch" class="btn-batch" disabled>🎲 Adicionar Lote (10 Itens)</button>
+                <button id="btnReport" class="btn-report" disabled>📄 Ver Relatório Atual</button>
+            </div>
+            <div class="control-group">
+                <label>⚡ Ajustes</label>
+                <button id="btnAddSingle" disabled>➕ Add 1 Item Avulso</button>
+                <button id="btnCollision" class="btn-collision" disabled>💥 Gerar Colisão Forçada</button>
+                <button id="btnUndo" class="btn-undo" disabled>↩️ Desfazer Último</button>
+                <button id="btnClear" class="btn-clear">🗑️ Limpar Mesa</button>
+            </div>
         </div>
 
-        <div class="control-group">
-            <label>⚡ 3. Ajustes Manuais</label>
-            <button id="btnAddSingle" disabled>➕ Add 1 Item Avulso</button>
-            <button id="btnCollision" class="btn-collision" disabled>💥 Gerar Colisão Forçada</button>
-            <button id="btnUndo" class="btn-undo" disabled>↩️ Desfazer Último</button>
-            <button id="btnClear" class="btn-clear">🗑️ Limpar Mesa</button>
+        <div id="controls-quest" class="hidden">
+            <div class="control-group">
+                <label>⚔️ Desafios</label>
+                <button id="btnNewQuest" class="btn-quest">📜 Pegar Nova Missão</button>
+                <button id="btnTestQuest" class="btn-test" disabled>👀 Testar Hipótese (Ver)</button>
+            </div>
+            <div class="control-group">
+                <label>Sua Resposta:</label>
+                <div id="quest-options-container">
+                    <div style="font-size:11px; color:#666; text-align:center; padding:10px; border:1px dashed #444;">
+                        Inicie uma missão para ver as opções.
+                    </div>
+                </div>
+            </div>
         </div>
+
     </div>
 
     <div id="game-container">
@@ -91,29 +115,51 @@
 
     <div id="right-sidebar">
         
-        <div class="stats-box">
-            <div class="stat-row"><span>Tamanho (N):</span> <span id="statSize" class="stat-val">10</span></div>
-            <div class="stat-row"><span>Ocupados:</span> <span id="statItems" class="stat-val">0</span></div>
-            <div class="stat-row"><span>Fator de Carga:</span> <span id="statLoad" class="stat-val">0.00</span></div>
-            <div class="progress-bg"><div id="loadBar" class="progress-fill"></div></div>
-            <div style="text-align: center; font-size: 10px; color: #666; margin-top: 5px;">Expande se > 0.7</div>
-        </div>
+        <div id="content-lab">
+            <div class="stats-box">
+                <div class="stat-row"><span>Tamanho (N):</span> <span id="statSize" class="stat-val">10</span></div>
+                <div class="stat-row"><span>Ocupados:</span> <span id="statItems" class="stat-val">0</span></div>
+                <div class="stat-row"><span>Fator de Carga:</span> <span id="statLoad" class="stat-val">0.00</span></div>
+                <div class="progress-bg"><div id="loadBar" class="progress-fill"></div></div>
+                <div style="text-align: center; font-size: 10px; color: #666; margin-top: 5px;">Expande se > 0.7</div>
+            </div>
 
-        <div class="legend-box">
-            <strong>🔬 METODOLOGIA CIENTÍFICA:</strong><br>
-            1. Selecione um <strong>Algoritmo</strong>.<br>
-            2. Adicione um <strong>Lote</strong> e observe.<br>
-            3. Abra o <strong>Relatório</strong> manualmente.<br>
-            4. Troque o algoritmo (os dados persistem).<br>
-            5. Os itens reaparecem <strong>automaticamente</strong>.
-        </div>
+            <div class="legend-box">
+                <strong>🔬 COMO UTILIZAR:</strong><br>
+                1. Selecione um <strong>Algoritmo</strong>.<br>
+                2. Adicione um <strong>Lote</strong> e observe.<br>
+                3. Abra o <strong>Relatório</strong> manualmente.<br>
+                4. Troque o algoritmo (os dados persistem).<br>
+                5. Use <strong>Repetir Lote</strong> (automático) para comparar.
+            </div>
 
-        <div id="log-header">📝 REGISTRO DE CÁLCULO</div>
-        <div id="log-content">
-            <div style="color: #555; text-align: center; margin-top: 20px;">
-                Selecione um algoritmo para iniciar.
+            <div id="log-header">📝 REGISTRO DE CÁLCULO</div>
+            <div id="log-content">
+                <div style="color: #555; text-align: center; margin-top: 20px;">
+                    Selecione um algoritmo para iniciar.
+                </div>
             </div>
         </div>
+
+        <div id="content-quest" class="hidden">
+            <div class="score-board">
+                <span class="score-label">PONTUAÇÃO</span>
+                <div style="font-size: 24px; color: #ffd700;">🪙 <span id="coinVal">0</span></div>
+            </div>
+
+            <div id="active-quest-box" class="hidden">
+                <div class="quest-card">
+                    <div class="quest-title">PERGAMINHO DE MISSÃO</div>
+                    <div id="questText" class="quest-text">...</div>
+                </div>
+                <div id="questFeedback" class="feedback-box hidden"></div>
+            </div>
+
+            <div id="no-quest-msg" style="text-align:center; color:#555; margin-top:40px;">
+                Clique em "Pegar Nova Missão" no menu esquerdo.
+            </div>
+        </div>
+
     </div>
 
     <script src="script.js"></script>

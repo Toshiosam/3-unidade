@@ -4,11 +4,30 @@ const ctx = canvas.getContext('2d');
 const selectAlgo = document.getElementById('algoSelect');
 const logContent = document.getElementById('log-content');
 
+// Containers de Modo
+const modeSwitch = document.getElementById('modeSwitch');
+const controlsLab = document.getElementById('controls-lab');
+const controlsQuest = document.getElementById('controls-quest');
+const contentLab = document.getElementById('content-lab');
+const contentQuest = document.getElementById('content-quest');
+
+// UI Lab
 const uiSize = document.getElementById('statSize');
 const uiItems = document.getElementById('statItems');
 const uiLoad = document.getElementById('statLoad');
 const uiBar = document.getElementById('loadBar');
 
+// UI Quest
+const btnNewQuest = document.getElementById('btnNewQuest');
+const btnTestQuest = document.getElementById('btnTestQuest');
+const activeQuestBox = document.getElementById('active-quest-box');
+const noQuestMsg = document.getElementById('no-quest-msg');
+const questText = document.getElementById('questText');
+const questOptionsContainer = document.getElementById('quest-options-container');
+const questFeedback = document.getElementById('questFeedback');
+const coinVal = document.getElementById('coinVal');
+
+// Botões Gerais
 const btnBatch = document.getElementById('btnBatch');
 const btnAddSingle = document.getElementById('btnAddSingle');
 const btnCollision = document.getElementById('btnCollision');
@@ -19,6 +38,7 @@ const btnStartIntro = document.getElementById('btnStartIntro');
 const btnHelp = document.getElementById('btnHelp');
 const btnCloseReport = document.getElementById('btnCloseReport');
 
+// Modais
 const introModal = document.getElementById('intro-modal');
 const reportModal = document.getElementById('report-modal');
 const repAlgo = document.getElementById('rep-algo');
@@ -27,6 +47,7 @@ const repCol = document.getElementById('rep-col');
 const repScore = document.getElementById('rep-score');
 const repDesc = document.getElementById('rep-desc');
 
+// --- CONFIG ---
 let TABLE_SIZE = 10;
 let SLOT_W = 64;       
 let GRID_COLS = 10;    
@@ -36,16 +57,22 @@ const SCANNER_POS = { x: canvas.width / 2, y: 580 };
 
 let GAME_MODE = null; 
 const MAX_LOAD_FACTOR = 0.7; 
+let CURRENT_MODE = 'SANDBOX';
 
+// --- STATE ---
 let savedBatch = []; 
 let currentBatchProcessing = 0; 
 let sessionCollisions = 0; 
 let sessionItemsProcessed = 0; 
+let coins = 0;
+let currentQuestData = null;
 
-// LISTENERS
+// --- LISTENERS ---
 if(btnStartIntro) btnStartIntro.addEventListener('click', () => introModal.classList.add('hidden'));
 if(btnHelp) btnHelp.addEventListener('click', () => introModal.classList.remove('hidden'));
 if(btnCloseReport) btnCloseReport.addEventListener('click', () => reportModal.classList.add('hidden'));
+
+modeSwitch.addEventListener('click', toggleMode);
 
 btnBatch.addEventListener('click', () => addBatch(10));
 btnAddSingle.addEventListener('click', addSingleRandomItem);
@@ -54,6 +81,9 @@ btnUndo.addEventListener('click', undoLastItem);
 btnReport.addEventListener('click', showReport);
 btnClear.addEventListener('click', resetEverything);
 selectAlgo.addEventListener('change', handleAlgoChange);
+
+btnNewQuest.addEventListener('click', startRandomQuest);
+btnTestQuest.addEventListener('click', testQuestHypothesis);
 
 canvas.addEventListener('mousedown', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -68,7 +98,110 @@ canvas.addEventListener('mousedown', (e) => {
     }
 });
 
-// LOGIC
+// --- SWITCH MODE ---
+function toggleMode() {
+    if (CURRENT_MODE === 'SANDBOX') {
+        CURRENT_MODE = 'QUEST';
+        modeSwitch.classList.remove('sandbox');
+        modeSwitch.classList.add('quest');
+        
+        controlsLab.classList.add('hidden');
+        contentLab.classList.add('hidden');
+        
+        controlsQuest.classList.remove('hidden');
+        contentQuest.classList.remove('hidden');
+        
+        resetEverything(true);
+    } else {
+        CURRENT_MODE = 'SANDBOX';
+        modeSwitch.classList.remove('quest');
+        modeSwitch.classList.add('sandbox');
+        
+        controlsQuest.classList.add('hidden');
+        contentQuest.classList.add('hidden');
+        
+        controlsLab.classList.remove('hidden');
+        contentLab.classList.remove('hidden');
+        
+        resetEverything(true);
+    }
+}
+
+// --- QUEST SYSTEM ---
+const QUESTS = [
+    {
+        text: "Se usarmos <strong>Sondagem Linear</strong> numa tabela de tamanho 10, onde o item <strong>25</strong> vai cair se o slot 5 já estiver ocupado?",
+        setup: () => {
+            TABLE_SIZE = 10; GAME_MODE = 'LINEAR'; selectAlgo.value = 'LINEAR';
+            bag.push(new Item(15, 'potion', 100, 640));
+            shelf.startProcess(bag[0]);
+        },
+        testItem: { id: 25, type: 'sword' },
+        correct: 6,
+        options: [5, 6, 7, 2]
+    },
+    {
+        text: "No <strong>Hash Duplo</strong> (H2 = 7 - k%7), onde o item <strong>12</strong> cairá se o slot 2 estiver cheio? (Tamanho 10)",
+        setup: () => {
+            TABLE_SIZE = 10; GAME_MODE = 'DOUBLE'; selectAlgo.value = 'DOUBLE';
+            bag.push(new Item(22, 'potion', 100, 640));
+            shelf.startProcess(bag[0]);
+        },
+        testItem: { id: 12, type: 'sword' },
+        correct: 4,
+        options: [2, 3, 4, 9]
+    }
+];
+
+function startRandomQuest() {
+    resetEverything(false);
+    currentQuestData = QUESTS[Math.floor(Math.random() * QUESTS.length)];
+    
+    noQuestMsg.classList.add('hidden');
+    activeQuestBox.classList.remove('hidden');
+    questFeedback.classList.add('hidden');
+    questText.innerHTML = currentQuestData.text;
+    btnTestQuest.disabled = false;
+    
+    questOptionsContainer.innerHTML = '';
+    const opts = [...currentQuestData.options].sort(() => Math.random() - 0.5);
+    opts.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'quiz-btn';
+        btn.innerText = `👉 Slot ${opt}`;
+        btn.onclick = () => checkAnswer(opt, btn);
+        questOptionsContainer.appendChild(btn);
+    });
+
+    currentQuestData.setup();
+}
+
+function testQuestHypothesis() {
+    if (!currentQuestData) return;
+    const t = currentQuestData.testItem;
+    bag.push(new Item(t.id, t.type, 450, 640));
+    btnTestQuest.disabled = true;
+}
+
+function checkAnswer(selected, btnElement) {
+    const isCorrect = selected === currentQuestData.correct;
+    questFeedback.classList.remove('hidden');
+    
+    if (isCorrect) {
+        coins += 50;
+        coinVal.innerText = coins;
+        questFeedback.innerHTML = "✅ RESPOSTA CORRETA! +50";
+        questFeedback.className = "feedback-box correct";
+        Array.from(questOptionsContainer.children).forEach(b => b.disabled = true);
+    } else {
+        questFeedback.innerHTML = "❌ ERROU! Teste na mesa para ver.";
+        questFeedback.className = "feedback-box wrong";
+        btnElement.disabled = true;
+    }
+}
+
+
+// --- LAB FUNCTIONS ---
 function clearLog() { logContent.innerHTML = ''; }
 function addLogHeader(text) {
     const div = document.createElement('div');
@@ -85,7 +218,7 @@ function addLogEntry(item, slot, collisionCount, baseFormula, calcDetail) {
     if (collisionCount > 0) {
          div.classList.add('collision');
          html += `<span class="log-error">⚠️ ${collisionCount} Colisões</span>`;
-         if (calcDetail) html += `<span class="log-calc">${calcDetail}</span>`;
+         if (calcDetail) html += `<span class="log-calc">Resol.: ${calcDetail}</span>`;
     }
     html += `<span class="log-final">➔ Slot Final: ${slot}</span>`;
     div.innerHTML = html; logContent.prepend(div);
@@ -228,7 +361,8 @@ class MagicShelf {
                     setTimeout(() => this.startProcess(item), 800 + Math.random() * 1000); 
                 }
             });
-            updateStats(); this.isResizing = false;
+            updateStats();
+            this.isResizing = false;
         }, 500);
     }
     startProcess(item) {
@@ -241,7 +375,8 @@ class MagicShelf {
         const bucket = this.slots[item.finalSlotIndex];
         if (bucket) { const idx = bucket.indexOf(item); if (idx > -1) bucket.splice(idx, 1); }
         item.state = 'WAITING'; item.finalSlotIndex = -1; item.pathQueue = [];
-        item.x = item.targetX = 100 + Math.random() * 700; item.y = item.targetY = 640 + Math.random() * 50;
+        item.x = item.targetX = 100 + Math.random() * 700; 
+        item.y = item.targetY = 640 + Math.random() * 50;
         const savedIndex = savedBatch.findIndex(d => d.id === item.id);
         if (savedIndex > -1) savedBatch.splice(savedIndex, 1);
         this.itemsCount--; sessionItemsProcessed--; sessionCollisions -= item.collidedThisTurn; item.collidedThisTurn = 0;
@@ -254,7 +389,10 @@ class MagicShelf {
         let calcDetail = ""; 
         let collisionCount = 0; let finalIndex = startIndex;
 
-        if (GAME_MODE === 'DOUBLE') { jumpMath = `H2: 7 - (${item.id}%7) = <strong>${7 - (item.id % 7)}</strong>`; }
+        if (GAME_MODE === 'DOUBLE') { 
+            const jumpVal = 7 - (item.id % 7);
+            calcDetail = `H2: 7-(${item.id}%7)=${jumpVal}`; 
+        }
 
         if (GAME_MODE === 'CHAINING') {
             this.slots[startIndex].push(item);
@@ -264,7 +402,10 @@ class MagicShelf {
             item.pathQueue.push({x: pos.x, y: finalY, action: 'CHECK'}); 
             item.pathQueue.push({x: pos.x, y: finalY, action: 'STORE'}); 
             finalIndex = startIndex;
-            if (depth > 0) { collisionCount = depth; calcDetail = `Lista (Prof. ${depth})`; }
+            if (depth > 0) { 
+                collisionCount = depth; 
+                calcDetail = `Lista (Prof. ${depth})`; 
+            }
         } else {
             let i = 0; let found = false; let currentSlot = startIndex;
             let jumpSize = (GAME_MODE === 'DOUBLE') ? (7 - (item.id % 7)) : 1;
@@ -292,6 +433,7 @@ class MagicShelf {
             }
             if (!found) { item.state = 'WAITING'; item.targetX = item.x; item.targetY = 650; return; }
         }
+        
         item.finalSlotIndex = finalIndex;
         item.collidedThisTurn = collisionCount;
         addLogEntry(item, finalIndex, collisionCount, baseFormula, calcDetail);
@@ -339,7 +481,11 @@ function updateStats() {
 }
 
 function enableControls() {
-    btnBatch.disabled = false; btnAddSingle.disabled = false; btnUndo.disabled = false; btnReport.disabled = false; btnCollision.disabled = false;
+    btnBatch.disabled = false;
+    btnAddSingle.disabled = false;
+    btnUndo.disabled = false;
+    btnReport.disabled = false;
+    btnCollision.disabled = false;
     logContent.innerHTML = '<div style="color:#555;text-align:center;margin-top:20px;">Laboratório Ativo.</div>';
 }
 
@@ -351,7 +497,8 @@ function addBatch(count) {
         const type = Math.random() > 0.6 ? 'sword' : (Math.random() > 0.5 ? 'hp' : 'mp');
         newItems.push({id, type}); savedBatch.push({id, type});
     }
-    sessionItemsProcessed += count; spawnItems(newItems);
+    currentBatchProcessing += count; sessionItemsProcessed += count;
+    spawnItems(newItems);
     addLogHeader(`🎲 LOTE ADCIONADO (+${count})`);
 }
 
@@ -361,19 +508,26 @@ function addSingleRandomItem() {
     const type = Math.random() > 0.6 ? 'sword' : (Math.random() > 0.5 ? 'hp' : 'mp');
     savedBatch.push({id, type});
     spawnItems([{id, type}]);
-    sessionItemsProcessed++;
+    currentBatchProcessing++; sessionItemsProcessed++;
+    btnUndo.disabled = false;
 }
 
 function forceCollision() {
-     if (!GAME_MODE) return;
-     let occupied = [];
-     for(let i=0; i<TABLE_SIZE; i++) { if(shelf.slots[i].length > 0) occupied.push(i); }
-     if(occupied.length===0) return alert("Mesa vazia! Adicione itens primeiro.");
-     const target = occupied[Math.floor(Math.random()*occupied.length)];
-     const newID = (Math.floor(Math.random()*50)+1)*TABLE_SIZE + target;
-     savedBatch.push({id:newID, type:'sword'}); spawnItems([{id:newID, type:'sword'}]);
-     addLogHeader("💥 COLISÃO FORÇADA");
-     sessionItemsProcessed++;
+    if (!GAME_MODE) return;
+    let occupied = [];
+    for(let i=0; i<TABLE_SIZE; i++) { if(shelf.slots[i].length > 0) occupied.push(i); }
+    if(occupied.length === 0) { alert("Mesa vazia! Adicione itens primeiro."); return; }
+    
+    const target = occupied[Math.floor(Math.random() * occupied.length)];
+    const factor = Math.floor(Math.random() * 50) + 1;
+    const newID = (factor * TABLE_SIZE) + target;
+    const type = Math.random() > 0.6 ? 'sword' : (Math.random() > 0.5 ? 'hp' : 'mp');
+    
+    savedBatch.push({id: newID, type});
+    spawnItems([{id: newID, type}]);
+    currentBatchProcessing++; sessionItemsProcessed++;
+    addLogHeader(`💥 COLISÃO FORÇADA (Alvo: ${target})`);
+    btnUndo.disabled = false;
 }
 
 function replayBatch() {
@@ -382,7 +536,7 @@ function replayBatch() {
     sessionCollisions = 0; sessionItemsProcessed = savedBatch.length; currentBatchProcessing = savedBatch.length;
     spawnItems(savedBatch);
     updateStats();
-    addLogHeader(`🔁 AUTO-REPLAY (${GAME_MODE})`);
+    addLogHeader(`🔁 REPLAY (${GAME_MODE})`);
 }
 
 function spawnItems(itemsData) {
@@ -394,17 +548,21 @@ function spawnItems(itemsData) {
 }
 
 function reportItemStored() {
-    if (currentBatchProcessing > 0) currentBatchProcessing--;
+    if (currentBatchProcessing > 0) {
+        currentBatchProcessing--;
+    }
 }
 
 function showReport() {
-    repAlgo.innerText = GAME_MODE; repItems.innerText = sessionItemsProcessed; repCol.innerText = sessionCollisions;
-    const ratio = sessionItemsProcessed > 0 ? (sessionCollisions/sessionItemsProcessed) : 0;
+    repAlgo.innerText = GAME_MODE;
+    repItems.innerText = sessionItemsProcessed;
+    repCol.innerText = sessionCollisions;
+    const ratio = sessionItemsProcessed > 0 ? (sessionCollisions / sessionItemsProcessed) : 0;
     let efficiency = "EXCELENTE"; let color = "#4caf50";
     if (ratio > 0.5) { efficiency = "REGULAR"; color = "#ffca28"; }
     if (ratio > 1.0) { efficiency = "BAIXA (Muitas Colisões)"; color = "#ff5252"; }
     repScore.innerText = efficiency; repScore.style.color = color;
-    repDesc.innerText = `Média: ${ratio.toFixed(2)} colisões/item`;
+    repDesc.innerText = `Média de ${ratio.toFixed(2)} colisões por item inserido.`;
     reportModal.classList.remove('hidden');
 }
 function closeModal() { reportModal.classList.add('hidden'); }
@@ -412,17 +570,21 @@ function closeModal() { reportModal.classList.add('hidden'); }
 let shelf = new MagicShelf();
 let bag = [];
 
-function resetEverything() {
+function resetEverything(fullReset = false) {
     bag = []; savedBatch = []; TABLE_SIZE = 10; clearLog();
     shelf = new MagicShelf(); sessionCollisions = 0; sessionItemsProcessed = 0; currentBatchProcessing = 0;
     updateStats();
+    if (fullReset) {
+        activeQuestBox.classList.add('hidden');
+        noQuestMsg.classList.remove('hidden');
+    }
 }
 
 function handleAlgoChange() {
     GAME_MODE = selectAlgo.value;
     enableControls();
     bag = []; TABLE_SIZE = 10; shelf = new MagicShelf(); clearLog();
-    sessionCollisions = 0; sessionItemsProcessed = 0; 
+    sessionCollisions = 0; sessionItemsProcessed = 0; currentBatchProcessing = 0;
     updateStats();
     if (savedBatch.length > 0) {
         replayBatch(); 
@@ -450,5 +612,5 @@ function loop() {
     requestAnimationFrame(loop);
 }
 updateStats();
-updateLayoutMetrics(); // Force Initial Draw
+updateLayoutMetrics(); // Force init
 loop();
