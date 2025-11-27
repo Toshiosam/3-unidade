@@ -52,17 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let GRID_COLS = 10;    
     let currentSlotGap = 15;
     
-    // POSIÇÕES FIXAS E SEGURAS
-    // Shelf em Y=120 (Topo)
-    let SHELF_START_Y = 120; 
-    // Scanner em Y=480 (Rodapé visível dentro de 600px)
-    const SCANNER_POS = { x: 450, y: 480 }; 
+    // POSIÇÕES FIXAS PARA VISIBILIDADE PERFEITA
+    let SHELF_START_Y = 100;  
+    const SCANNER_POS = { x: 450, y: 500 }; 
 
     let GAME_MODE = null; 
     const MAX_LOAD_FACTOR = 0.7; 
     let CURRENT_MODE = 'SANDBOX';
 
-    // --- TEXTOS ---
+    // --- TEXTOS TÉCNICOS (COLUNA ESQUERDA) ---
     const ALGO_DESCRIPTIONS = {
         'CHAINING': `
             <strong>⛓️ ENCADEAMENTO (SEPARATE CHAINING)</strong><br><br>
@@ -99,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `
     };
 
+    // --- TEXTOS DIDÁTICOS (MONITOR CENTRAL) ---
     const LAB_GUIDES = {
         'INITIAL': `
             <strong>👋 Olá! Bem-vindo ao Laboratório.</strong><br>
@@ -278,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="font-size:14px; color:#8be9fd; margin-bottom:5px">ALGORITMO: LINEAR PROBING</div>
                     O Slot <strong>${occupiedSlot}</strong> já está ocupado.<br>
                     O sistema tenta inserir o ID <strong>${testId}</strong> (Hash ${occupiedSlot}).<br>
-                    Usando a regra de <strong>+1</strong>, em qual índice ele será alocado?
+                    Usando a regra de <strong>+1</strong>, em qual índice ele cairá?
                 `;
             } 
             else if (algoType === 'QUADRATIC') {
@@ -447,14 +446,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function spawnItems(itemsData) {
         itemsData.forEach((data, index) => {
-            // CORREÇÃO: Nasce EXATAMENTE no scanner, coordenadas seguras
-            const startX = SCANNER_POS.x; 
+            // NASCE NO SCANNER (Y=500)
+            const startX = SCANNER_POS.x;
             const startY = SCANNER_POS.y; 
             
             const newItem = new Item(data.id, data.type, startX, startY);
             bag.push(newItem);
             
-            // Delay sequencial
             setTimeout(() => {
                 shelf.startProcess(newItem);
             }, index * 300);
@@ -555,48 +553,57 @@ document.addEventListener('DOMContentLoaded', () => {
         uiBar.style.backgroundColor = load > 0.7 ? "#ff5555" : "#50fa7b";
     }
 
-    // --- ARTE DRACULA (SÓLIDA E VISÍVEL) ---
+    // --- ARTE DRACULA (ITENS VISÍVEIS) ---
     const Art = {
         drawDataCube: (x, y, color, scale = 1) => {
             const s = 30 * scale;
-            // Preenchimento Sólido com leve transparência
-            ctx.fillStyle = color; 
+            ctx.save();
+            ctx.shadowBlur = 10; ctx.shadowColor = color;
+            ctx.fillStyle = color; ctx.globalAlpha = 0.8; 
             ctx.fillRect(x - s/2, y - s/2, s, s);
-            
-            // Borda Branca
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
             ctx.strokeRect(x - s/2, y - s/2, s, s);
-            
-            // Detalhe interno escuro
-            ctx.fillStyle = "rgba(0,0,0,0.5)"; 
-            ctx.fillRect(x - s/4, y - s/4, s/2, s/2);
+            ctx.fillStyle = color; ctx.fillRect(x - s/4, y - s/4, s/2, s/2);
+            ctx.restore(); 
         },
         drawDataSphere: (x, y, color, scale = 1) => {
             const r = 16 * scale; 
+            ctx.save();
+            ctx.shadowBlur = 10; ctx.shadowColor = color;
+            ctx.globalAlpha = 0.8; 
             ctx.fillStyle = color; 
             ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
+            ctx.restore();
         },
         drawDataPrism: (x, y, color, scale = 1) => {
             const s = 18 * scale;
+            ctx.save();
+            ctx.shadowBlur = 10; ctx.shadowColor = color;
             ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s, y + s); ctx.lineTo(x - s, y + s); ctx.closePath();
-            ctx.fillStyle = color; ctx.fill();
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.globalAlpha = 0.8; ctx.fillStyle = color; ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
         },
         drawScanner: (x, y, active) => {
             const baseColor = active ? "#8be9fd" : "#44475a";
+            ctx.save();
+            ctx.shadowBlur = active ? 25 : 0; ctx.shadowColor = baseColor;
             ctx.strokeStyle = baseColor; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.ellipse(x, y + 20, 80, 20, 0, 0, Math.PI*2); ctx.stroke();
             ctx.beginPath(); ctx.ellipse(x, y + 20, 60, 15, 0, 0, Math.PI*2); ctx.stroke();
-            
             if (active) {
                 const grad = ctx.createLinearGradient(x, y+20, x, y-80);
-                grad.addColorStop(0, "rgba(139, 233, 253, 0.4)"); grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                grad.addColorStop(0, "rgba(139, 233, 253, 0.2)"); grad.addColorStop(1, "rgba(0, 0, 0, 0)");
                 ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(x-50, y+20); ctx.lineTo(x+50, y+20); ctx.lineTo(x+60, y-100); ctx.lineTo(x-60, y-100); ctx.fill();
             }
             ctx.fillStyle = "#f8f8f2"; ctx.font = "12px Consolas"; ctx.textAlign = "center"; 
             ctx.fillText(active ? "PROCESSANDO..." : "AGUARDANDO INPUT", x, y + 55);
+            ctx.restore();
         }
     };
 
@@ -604,28 +611,27 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor(id, type, x, y) {
             this.id = id; this.type = type; this.x = x; this.y = y;
             this.targetX = x; this.targetY = y; this.state = 'WAITING'; 
-            this.pathQueue = [];
+            this.pathQueue = []; this.scanTimer = 0; this.finalSlotIndex = -1; this.collidedThisTurn = 0;
         }
         update() {
             const dx = this.targetX - this.x; const dy = this.targetY - this.y;
             const dist = Math.hypot(dx, dy);
-            
-            if(dist > 1) {
-                this.x += dx * 0.15;
-                this.y += dy * 0.15;
-            }
-
-            if (this.state === 'TO_SCANNER' && dist < 5) {
-                this.state = 'SCANNING'; 
-                setTimeout(() => shelf.calculatePath(this), 500); 
-            } 
-            else if (this.state === 'MOVING_PATH' && dist < 5) {
-                if (this.pathQueue.length > 0) {
-                    const nextPoint = this.pathQueue.shift();
-                    this.targetX = nextPoint.x; this.targetY = nextPoint.y;
-                    if (nextPoint.action === 'STORE') {
-                        this.state = 'STORED'; 
-                        shelf.history.push(this); shelf.itemsCount++; shelf.checkResize(); updateStats(); reportItemStored(); 
+            if (this.state === 'TO_SCANNER') {
+                this.x += dx * 0.1; this.y += dy * 0.1;
+                if (dist < 2) { this.state = 'SCANNING'; this.scanTimer = 80; }
+            } else if (this.state === 'SCANNING') {
+                this.scanTimer--;
+                if (this.scanTimer <= 0) shelf.calculatePath(this);
+            } else if (this.state === 'MOVING_PATH') {
+                this.x += dx * 0.25; this.y += dy * 0.25;
+                if (dist < 5) {
+                    if (this.pathQueue.length > 0) {
+                        const nextPoint = this.pathQueue.shift();
+                        this.targetX = nextPoint.x; this.targetY = nextPoint.y;
+                        if (nextPoint.action === 'STORE') {
+                            this.state = 'STORED'; 
+                            shelf.history.push(this); shelf.itemsCount++; shelf.checkResize(); updateStats(); reportItemStored(); 
+                        }
                     }
                 }
             }
@@ -638,21 +644,34 @@ document.addEventListener('DOMContentLoaded', () => {
             else Art.drawDataCube(this.x, this.y, '#6272a4', scale); 
 
             if (SLOT_W > 25) {
-                ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.max(10, 14 * scale)}px monospace`; ctx.textAlign = "center"; 
+                ctx.fillStyle = "#fff"; 
+                ctx.font = `bold ${Math.max(10, 14 * scale)}px Consolas`; 
+                ctx.textAlign = "center"; 
                 ctx.fillText(this.id, this.x, this.y + 5);
             }
             if (this.state === 'SCANNING') this.drawExplanationBubble();
         }
         drawExplanationBubble() {
-            let bubbleY = this.y - 60;
+            let bubbleH = 100; let bubbleY = this.y - 80;
+            if (GAME_MODE === 'DOUBLE') { bubbleH = 140; bubbleY = this.y - 120; }
             const slotDestino = this.id % TABLE_SIZE;
-            ctx.fillStyle = "rgba(40, 42, 54, 0.9)"; ctx.strokeStyle = "#8be9fd"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.rect(this.x - 80, bubbleY - 40, 160, 60); ctx.fill(); ctx.stroke();
-            
-            ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; 
-            ctx.fillText(`ID: ${this.id}`, this.x, bubbleY - 20);
-            ctx.fillStyle = "#ff5555"; ctx.font = "bold 14px monospace";
-            ctx.fillText(`Hash: ${slotDestino}`, this.x, bubbleY);
+            ctx.fillStyle = "rgba(40, 42, 54, 0.9)"; ctx.strokeStyle = "#8be9fd"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.roundRect(this.x - 100, bubbleY - 60, 200, 100, 10); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#bd93f9"; ctx.font = "14px monospace"; ctx.fillText(`Analisando ID: ${this.id}`, this.x, bubbleY - 35);
+            ctx.font = "bold 20px monospace"; ctx.fillStyle = "#f1fa8c"; ctx.fillText(`${this.id} % ${TABLE_SIZE} = ${slotDestino}`, this.x, bubbleY);
+            ctx.font = "12px Arial"; ctx.fillStyle = "#8be9fd";
+            let hint = "Destino Inicial";
+            if(GAME_MODE === 'LINEAR') hint = "Se cheio: Tenta Vizinho (+1)";
+            if(GAME_MODE === 'QUADRATIC') hint = "Se cheio: Tenta Salto (+i²)";
+            if(GAME_MODE === 'DOUBLE') hint = `Salto Duplo: ${7 - (this.id % 7)}`;
+            ctx.fillText(hint, this.x, bubbleY + 25);
+            if (GAME_MODE === 'DOUBLE') {
+                ctx.beginPath(); ctx.moveTo(this.x - 90, bubbleY + 75); ctx.lineTo(this.x + 90, bubbleY + 75);
+                ctx.strokeStyle = "#444"; ctx.lineWidth = 1; ctx.stroke();
+                const primo = 7; const h2 = primo - (this.id % primo);
+                ctx.font = "bold 16px monospace"; ctx.fillStyle = "#ff79c6"; ctx.fillText(`${primo} - (${this.id} % ${primo}) = ${h2}`, this.x, bubbleY + 95);
+                ctx.font = "11px Arial"; ctx.fillStyle = "#ff79c6"; ctx.fillText(`Tam. do Pulo (Se colidir)`, this.x, bubbleY + 110);
+            }
         }
     }
 
@@ -663,52 +682,56 @@ document.addEventListener('DOMContentLoaded', () => {
         checkResize() {
             if(this.isResizing || this.itemsCount/TABLE_SIZE < MAX_LOAD_FACTOR) return;
             this.isResizing = true;
-            alert(`⚠️ CARGA ALTA! Expandindo memória...`);
+            
+            alert(`⚠️ LIMITE DE CARGA ATINGIDO!\n\nA tabela precisa crescer de ${TABLE_SIZE} para ${TABLE_SIZE*2} slots. Iniciando Re-Hashing...`);
             setTimeout(() => {
                 addLogHeader(`⚡ EXPANSÃO: ${TABLE_SIZE} ➔ ${TABLE_SIZE*2} Slots. Re-Hashing...`);
-                TABLE_SIZE *= 2; updateLayoutMetrics(); this.resetSlots(); this.itemsCount = 0; this.history = []; 
+                TABLE_SIZE *= 2; 
+                updateLayoutMetrics();
+                this.resetSlots();
+                this.itemsCount = 0; 
+                this.history = []; 
                 bag.forEach(item => {
-                    item.state = 'WAITING'; item.pathQueue = [];
-                    item.x = SCANNER_POS.x; item.y = SCANNER_POS.y;
-                    setTimeout(() => this.startProcess(item), 500 + Math.random()*1000);
+                    item.state = 'WAITING';
+                    item.finalSlotIndex = -1;
+                    item.collidedThisTurn = 0;
+                    item.pathQueue = [];
+                    item.x = item.targetX = SCANNER_POS.x + Math.random()*100 - 50;
+                    item.y = item.targetY = SCANNER_POS.y + (Math.random() * 40 - 20);
+                    setTimeout(() => this.startProcess(item), 500 + Math.random()*2000);
                 });
-                updateStats(); this.isResizing = false;
+                updateStats(); 
+                this.isResizing = false;
             }, 500);
         }
 
-        startProcess(item) { 
-            if(!this.isResizing) { item.state='TO_SCANNER'; item.targetX=SCANNER_POS.x; item.targetY=SCANNER_POS.y; } 
-        }
-        
+        startProcess(item) { if(!this.isResizing) { item.state='TO_SCANNER'; item.targetX=SCANNER_POS.x; item.targetY=SCANNER_POS.y; } }
         undoLast() {
             if(this.history.length === 0) return alert("Nada para desfazer!");
             const item = this.history.pop();
             const bucket = this.slots[item.finalSlotIndex];
             if(bucket) { const idx = bucket.indexOf(item); if(idx > -1) bucket.splice(idx, 1); }
-            item.state = 'WAITING'; item.pathQueue = [];
-            item.x = SCANNER_POS.x; item.y = SCANNER_POS.y; item.targetX = SCANNER_POS.x; item.targetY = SCANNER_POS.y;
+            item.state = 'WAITING'; item.finalSlotIndex = -1; item.pathQueue = [];
+            item.x = item.targetX = 100 + Math.random()*700; 
+            item.y = item.targetY = SCANNER_POS.y; 
             const sIdx = savedBatch.findIndex(d => d.id === item.id);
             if(sIdx > -1) savedBatch.splice(sIdx, 1);
             this.itemsCount--; sessionItemsProcessed--; sessionCollisions -= item.collidedThisTurn; item.collidedThisTurn = 0;
             updateStats(); removeLogByItemId(item.id);
         }
-
         calculatePath(item) {
             const start = item.id % TABLE_SIZE;
             item.state = 'MOVING_PATH'; item.pathQueue = [];
             let curr = start, i = 0, found = false;
             let cols = 0, detail = "";
             const h2 = (GAME_MODE === 'DOUBLE') ? (7 - (item.id % 7)) : 1;
-            
             if (GAME_MODE === 'CHAINING') {
                 this.slots[start].push(item);
                 const pos = getSlotScreenPos(start);
                 const depth = this.slots[start].length - 1;
-                item.pathQueue.push({x: pos.x, y: pos.y, action: 'CHECK'});
-                item.pathQueue.push({x: pos.x, y: pos.y + (depth*pos.size), action: 'STORE'});
+                item.pathQueue.push({x: pos.x, y: pos.y + 10 + (depth*pos.size), action: 'STORE'});
                 item.finalSlotIndex = start;
                 if(depth > 0) { cols = depth; detail = `Lista (${depth})`; }
-                found = true;
             } else {
                 while(i < TABLE_SIZE*2) {
                     if(GAME_MODE==='LINEAR') curr = (start + i) % TABLE_SIZE;
@@ -720,38 +743,70 @@ document.addEventListener('DOMContentLoaded', () => {
                         this.slots[curr].push(item);
                         item.pathQueue.push({x: pos.x, y: pos.y, action: 'STORE'});
                         found = true; item.finalSlotIndex = curr;
-                        if(i > 0) detail = `Colisões: ${i}`;
+                        if(i > 0) {
+                            if(GAME_MODE==='LINEAR') detail = `(${start}+${i})%${TABLE_SIZE}`;
+                            else if(GAME_MODE==='QUADRATIC') detail = `(${start}+${i}²)%${TABLE_SIZE}`;
+                            else detail = `(${start}+${i}*${h2})%${TABLE_SIZE}`;
+                        }
                         break;
                     }
-                    item.pathQueue.push({x: pos.x + (Math.random()*10-5), y: pos.y, action: 'COLLISION'});
+                    item.pathQueue.push({x: pos.x, y: pos.y-20, action: 'COLLISION'});
                     i++; cols++;
                 }
+                if(!found) { item.state='WAITING'; item.targetY=650; return; }
             }
+            item.collidedThisTurn = cols;
+            
+            // FIX: ADICIONADO O CONTADOR GLOBAL QUE FALTAVA
+            sessionCollisions += cols; 
+
             if(CURRENT_MODE === 'SANDBOX') addLogEntry(item, item.finalSlotIndex, cols, `${item.id}%${TABLE_SIZE}`, detail);
             if(item.pathQueue.length > 0) { const f = item.pathQueue.shift(); item.targetX=f.x; item.targetY=f.y; }
         }
         
         draw() {
             updateLayoutMetrics();
-            ctx.fillStyle = "#8be9fd"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center"; 
-            ctx.fillText(">> ADDRESS_SPACE [RAM] // 0x00...0xFF", canvas.width / 2, SHELF_START_Y - 25);
+            
+            // Título CENTRALIZADO
+            ctx.save();
+            ctx.fillStyle = "#8be9fd"; 
+            ctx.font = "bold 14px Consolas";
+            ctx.textAlign = "center"; 
+            ctx.fillText(">> ADDRESS_SPACE [RAM] // 0x00...0xFF", canvas.width / 2, SHELF_START_Y - 30);
+            ctx.restore();
 
             for(let i=0; i<TABLE_SIZE; i++) {
                 const pos = getSlotScreenPos(i);
                 const s = pos.size;
-                ctx.fillStyle = "rgba(40, 42, 54, 0.6)"; ctx.fillRect(pos.x-s/2, pos.y-s/2, s, s);
+                
+                // SLOT DRACULA (Roxo Wireframe)
+                ctx.fillStyle = "rgba(40, 42, 54, 0.6)"; 
+                ctx.fillRect(pos.x-s/2, pos.y-s/2, s, s);
                 ctx.strokeStyle = "#bd93f9"; ctx.lineWidth = 1; 
-                ctx.strokeRect(pos.x-s/2, pos.y-s/2, s, s);
-                if(s > 25) { 
-                    ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; ctx.textAlign = "center"; 
-                    ctx.fillText(i, pos.x, pos.y - s/2 - 5); 
+                
+                if (this.slots[i].length > 0) {
+                    ctx.shadowBlur = 15; ctx.shadowColor = "#bd93f9"; ctx.lineWidth = 2;
+                } else {
+                    ctx.shadowBlur = 0;
                 }
-                if(GAME_MODE === 'CHAINING' && this.slots[i].length > 1) {
-                     const b = this.slots[i];
-                     for(let j=1; j<b.length; j++) {
-                         ctx.strokeStyle = "#8be9fd"; ctx.lineWidth = 2; ctx.beginPath(); 
-                         ctx.moveTo(b[j-1].x, b[j-1].y); ctx.lineTo(b[j].x, b[j].y); ctx.stroke();
-                     }
+                ctx.strokeRect(pos.x-s/2, pos.y-s/2, s, s);
+                ctx.shadowBlur = 0; 
+
+                if(s > 25) { 
+                    ctx.fillStyle = "#6272a4"; ctx.font = `${Math.floor(s/3)}px Consolas`; ctx.textAlign = "center"; 
+                    ctx.fillText(i, pos.x, pos.y+s/3); 
+                }
+
+                if(GAME_MODE === 'CHAINING') {
+                    const b = this.slots[i];
+                    if(b.length > 1) {
+                         for(let j=1; j<b.length; j++) {
+                             const prevY = (j===1) ? pos.y : b[j-1].y;
+                             ctx.strokeStyle = "#ff79c6"; ctx.lineWidth = 2; ctx.beginPath(); 
+                             ctx.moveTo(b[j].x, b[j].y); ctx.lineTo(b[j].x, prevY+s/2); ctx.stroke();
+                             ctx.fillStyle = "#ff79c6"; ctx.beginPath(); ctx.arc(b[j].x, prevY+s/2, 3, 0, Math.PI*2); ctx.fill();
+                         }
+                    }
                 }
             }
         }
@@ -770,6 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateTopPanelForLab();
+    
     updateStats();
     updateLayoutMetrics();
     loop();
