@@ -3,55 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HashQuest</title>
+    <title>HashQuest: Terminal</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="intro-modal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-title">📚 HashQuest: Laboratório de Dados</div>
+            <div class="modal-title">💾 SYSTEM_BOOT: HashQuest</div>
             
             <div class="intro-section">
-                <div class="intro-header">O que é isso?</div>
+                <div class="intro-header">>> INICIALIZANDO SIMULADOR...</div>
                 <p class="intro-p">
-                    Este é um simulador interativo de <strong>Tabelas Hash</strong>. Aqui você pode visualizar exatamente o que acontece dentro da memória do computador quando guardamos dados e ocorrem <strong>colisões</strong>.
+                    Bem-vindo ao terminal de visualização de memória. Este sistema simula o comportamento interno de <strong>Tabelas Hash</strong> e resolução de conflitos de dados.
                 </p>
             </div>
 
             <div class="intro-highlight">
-                ⚡ <strong>COMO USAR:</strong>
-                <div style="margin-top:10px; font-size: 14px; color: #ddd;">
-                    1. Feche esta janela.<br>
-                    2. No menu à <strong>DIREITA</strong>, escolha um <strong>Feitiço (Algoritmo)</strong>.<br>
-                    3. Clique em <strong>"Adicionar Lote"</strong> ou use os botões de teste.<br>
-                    4. Observe o comportamento no centro e os cálculos na esquerda.
+                ⚡ <strong>INSTRUÇÕES DE OPERAÇÃO:</strong>
+                <div style="margin-top:10px; font-size: 14px; color: #ddd; font-family: monospace;">
+                    1. Feche este terminal.<br>
+                    2. No painel à <strong>DIREITA</strong>, carregue um <strong>Protocolo (Algoritmo)</strong>.<br>
+                    3. Injete dados usando <strong>"Injetar Lote"</strong>.<br>
+                    4. Analise a alocação de memória no Grid Central.
                 </div>
             </div>
 
-            <button class="btn-start" id="btnStartIntro">ACESSAR LABORATÓRIO</button>
+            <button class="btn-start" id="btnStartIntro">ACESSAR SISTEMA</button>
         </div>
     </div>
 
     <div id="report-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <div class="modal-title">📄 Relatório de Eficiência</div>
-            <div class="modal-subtitle">Dados da Sessão Atual</div>
-            <div class="report-row"><span>Algoritmo:</span> <span class="report-val" id="rep-algo">-</span></div>
-            <div class="report-row"><span>Itens Inseridos:</span> <span class="report-val" id="rep-items">0</span></div>
-            <div class="report-row"><span>Total de Colisões:</span> <span class="report-val" id="rep-col" style="color:#ffca28">0</span></div>
+            <div class="modal-title">📄 Relatório de Execução</div>
+            <div class="modal-subtitle">Log da Sessão Atual</div>
+            <div class="report-row"><span>Protocolo:</span> <span class="report-val" id="rep-algo">-</span></div>
+            <div class="report-row"><span>Dados Injetados:</span> <span class="report-val" id="rep-items">0</span></div>
+            <div class="report-row"><span>Colisões Totais:</span> <span class="report-val" id="rep-col" style="color:#ff5555">0</span></div>
             <div class="efficiency-box">
-                <div style="font-size: 10px; color:#aaa;">DIAGNÓSTICO</div>
+                <div style="font-size: 10px; color:#aaa;">DIAGNÓSTICO DE PERFORMANCE</div>
                 <div class="eff-score" id="rep-score">-</div>
                 <div style="font-size: 11px; color:#666; margin-top:5px;" id="rep-desc"></div>
             </div>
-            <button class="btn-close-rep" id="btnCloseReport">Fechar Relatório</button>
+            <button class="btn-close-rep" id="btnCloseReport">FECHAR LOG</button>
         </div>
     </div>
 
     <div id="left-sidebar">
         <h2>
-            🔮 GRIMÓRIO
+            💾 TERMINAL
             <button class="help-btn" id="btnHelp" title="Ajuda">?</button>
         </h2>
 
@@ -63,24 +63,21 @@
 
         <div id="info-sandbox">
             <div class="stats-box">
-                <div class="stat-row"><span>Tamanho (N):</span> <span id="statSize" class="stat-val">10</span></div>
+                <div class="stat-row"><span>Alocação (N):</span> <span id="statSize" class="stat-val">10</span></div>
                 <div class="stat-row"><span>Ocupados:</span> <span id="statItems" class="stat-val">0</span></div>
-                <div class="stat-row"><span>Fator de Carga:</span> <span id="statLoad" class="stat-val">0.00</span></div>
+                <div class="stat-row"><span>Load Factor:</span> <span id="statLoad" class="stat-val">0.00</span></div>
                 <div class="progress-bg"><div id="loadBar" class="progress-fill"></div></div>
-                <div style="text-align: center; font-size: 10px; color: #666; margin-top: 5px;">Expande se > 0.7</div>
+                <div style="text-align: center; font-size: 10px; color: #666; margin-top: 5px;">Resize trigger: > 0.7</div>
             </div>
 
             <div class="legend-box" id="algoInfo">
-                <strong>🔬 COMO UTILIZAR:</strong><br>
-                1. Configure o Algoritmo na <strong>Direita</strong>.<br>
-                2. Adicione Itens e observe a mesa.<br>
-                3. Acompanhe o cálculo no Log abaixo.<br>
-                4. Troque o algoritmo para comparar (Replay).
+                <strong>🔬 DOCS TÉCNICAS:</strong><br>
+                Selecione um protocolo à direita para visualizar a documentação técnica e complexidade assintótica.
             </div>
 
-            <div id="log-header">📝 REGISTRO DE CÁLCULO</div>
+            <div id="log-header">📝 SYSTEM_LOG</div>
             <div id="log-content">
-                <div style="color: #555; text-align: center; margin-top: 20px;">Selecione um algoritmo...</div>
+                <div style="color: #6272a4; text-align: center; margin-top: 20px;">Aguardando input...</div>
             </div>
         </div>
     </div>
@@ -89,8 +86,8 @@
         
         <div id="info-quest" class="hidden">
             <div class="quest-card">
-                <div class="quest-title">PERGAMINHO DE MISSÃO</div>
-                <div id="questText" class="quest-text">Inicie uma missão para ver a pergunta aqui.</div>
+                <div class="quest-title">MONITOR DE SISTEMA</div>
+                <div id="questText" class="quest-text">Inicie uma operação...</div>
             </div>
         </div>
 
@@ -98,7 +95,7 @@
             <button id="btnCenterQuest" class="btn-quest-large">📜 INICIAR NOVA MISSÃO</button>
         </div>
 
-        <canvas id="gameCanvas" width="900" height="700"></canvas>
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
     </div>
 
     <div id="right-sidebar">
@@ -106,7 +103,7 @@
 
         <div id="controls-lab">
             <div class="control-group">
-                <label>📜 1. Feitiço (Algoritmo)</label>
+                <label>⚙️ 1. Protocolo (Algoritmo)</label>
                 <select id="algoSelect">
                     <option value="" disabled selected>-- SELECIONE --</option>
                     <option value="CHAINING">Encadeamento (Listas)</option>
@@ -118,37 +115,37 @@
 
             <div class="control-group">
                 <label>🧪 2. Experimentos</label>
-                <button id="btnBatch" class="btn-batch" disabled>🎲 Adicionar Lote (10)</button>
+                <button id="btnBatch" class="btn-batch" disabled>🎲 Injetar Lote (10)</button>
                 <button id="btnReport" class="btn-report" disabled>📄 Ver Relatório</button>
             </div>
 
             <div class="control-group">
-                <label>⚡ 3. Ajustes</label>
+                <label>⚡ 3. Ajustes Manuais</label>
                 <button id="btnAddSingle" disabled>➕ Item Avulso</button>
                 <button id="btnCollision" class="btn-collision" disabled>💥 Forçar Colisão</button>
                 <button id="btnUndo" class="btn-undo" disabled>↩️ Desfazer</button>
-                <button id="btnClear" class="btn-clear">🗑️ Limpar Mesa</button>
+                <button id="btnClear" class="btn-clear">🗑️ Limpar Memória</button>
             </div>
         </div>
 
         <div id="controls-quest" class="hidden">
             <div class="score-board">
-                <span class="score-label">PONTUAÇÃO</span>
-                <div style="font-size: 24px; color: #ffd700;">🪙 <span id="coinVal">0</span></div>
+                <span class="score-label">CREDITS (PONTUAÇÃO)</span>
+                <div style="font-size: 24px; color: #f1fa8c;">🪙 <span id="coinVal">0</span></div>
             </div>
 
             <div id="questFeedback" class="feedback-box hidden"></div>
             
             <div class="control-group">
-                <label>⚔️ Ferramentas</label>
+                <label>⚔️ Ferramentas de Debug</label>
                 <button id="btnTestQuest" class="btn-test" disabled>🧪 Testar Algoritmo</button>
             </div>
             
             <div class="control-group">
-                <label>Sua Resposta:</label>
+                <label>Output Esperado:</label>
                 <div id="quest-options-container">
-                    <div style="font-size:11px; color:#666; text-align:center; padding:10px; border:1px dashed #444;">
-                        Use o botão central para iniciar.
+                    <div style="font-size:11px; color:#6272a4; text-align:center; padding:10px; border:1px dashed #444;">
+                        Inicie a missão para habilitar.
                     </div>
                 </div>
             </div>

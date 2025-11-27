@@ -46,31 +46,84 @@ document.addEventListener('DOMContentLoaded', () => {
     const repScore = document.getElementById('rep-score');
     const repDesc = document.getElementById('rep-desc');
 
-    // --- CONFIG & TEXTOS ---
+    // --- CONFIGURAÇÃO GEOMÉTRICA ---
     let TABLE_SIZE = 10;
     let SLOT_W = 64;       
     let GRID_COLS = 10;    
     let currentSlotGap = 15;
-    let SHELF_START_Y = 100;
-    const SCANNER_POS = { x: canvas.width / 2, y: 580 };
+    
+    // POSIÇÕES FIXAS E SEGURAS
+    // Shelf em Y=120 (Topo)
+    let SHELF_START_Y = 120; 
+    // Scanner em Y=480 (Rodapé visível dentro de 600px)
+    const SCANNER_POS = { x: 450, y: 480 }; 
 
     let GAME_MODE = null; 
     const MAX_LOAD_FACTOR = 0.7; 
     let CURRENT_MODE = 'SANDBOX';
 
+    // --- TEXTOS ---
     const ALGO_DESCRIPTIONS = {
-        'CHAINING': "<strong>⛓️ Encadeamento (Listas):</strong><br>Cria uma lista encadeada (um 'varal') em cada slot. Se houver colisão, o item é anexado ao final da lista. É robusto para tabelas cheias, mas o acesso fica lento se as listas crescerem demais.",
-        'LINEAR': "<strong>➡️ Sondagem Linear (+1):</strong><br>Se o slot estiver ocupado, tenta o vizinho imediato (+1). É simples e rápido, mas sofre com 'Agrupamento Primário' (bairros lotados), onde colisões atraem ainda mais colisões.",
-        'QUADRATIC': "<strong>⤴️ Sondagem Quadrática (+i²):</strong><br>Em vez de vizinhos, tenta saltos exponenciais (+1², +2², +3²...). Isso espalha os itens e evita os bairros lotados do método Linear, mas é mais complexo matematicamente.",
-        'DOUBLE': "<strong>🔀 Hash Duplo (H2):</strong><br>Usa uma segunda fórmula hash (H2) para calcular um tamanho de salto único para cada item. É o método mais eficiente para 'espalhar' dados em tabelas de endereçamento aberto."
+        'CHAINING': `
+            <strong>⛓️ ENCADEAMENTO (SEPARATE CHAINING)</strong><br><br>
+            <strong>Implementação:</strong> Mantém um vetor de ponteiros. Cada slot aponta para o início de uma Lista Encadeada (Linked List).<br>
+            <strong>Funcionamento:</strong> <code>h(k) = k % N</code>. Se o slot estiver ocupado, o novo item é inserido no final da lista daquele slot.<br>
+            <strong>Análise Técnica:</strong><br>
+            <span style="color:#50fa7b">✔</span> Tolera Fator de Carga $\\alpha > 1$.<br>
+            <span style="color:#ff5555">✘</span> Performance degrada para $O(n)$ se a lista crescer muito.<br>
+            <span style="color:#ff5555">✘</span> Baixa localidade de referência (Cache Miss) devido aos ponteiros dispersos.
+        `,
+        'LINEAR': `
+            <strong>➡️ SONDAGEM LINEAR (OPEN ADDRESSING)</strong><br><br>
+            <strong>Implementação:</strong> Todos os dados ficam no próprio vetor. Não usa memória extra para ponteiros.<br>
+            <strong>Funcionamento:</strong> Se <code>h(k)</code> colidir, tenta <code>(h(k)+1) % N</code>, depois <code>+2</code>, etc.<br>
+            <strong>Análise Técnica:</strong><br>
+            <span style="color:#50fa7b">✔</span> Excelente uso de Cache (CPU prefetching) por acessar memória contígua.<br>
+            <span style="color:#ff5555">✘</span> Sofre de <strong>Agrupamento Primário</strong>: Clusters de ocupados aumentam a chance de colisão, criando um efeito "bola de neve".
+        `,
+        'QUADRATIC': `
+            <strong>⤴️ SONDAGEM QUADRÁTICA</strong><br><br>
+            <strong>Implementação:</strong> Endereçamento Aberto com saltos não-lineares.<br>
+            <strong>Funcionamento:</strong> Em colisão, tenta índices: <code>(h(k) + i²) % N</code>. (Saltos: 1, 4, 9, 16...).<br>
+            <strong>Análise Técnica:</strong><br>
+            <span style="color:#50fa7b">✔</span> Elimina o Agrupamento Primário (clusters lineares).<br>
+            <span style="color:#ff5555">✘</span> Pode sofrer de <strong>Agrupamento Secundário</strong>: Chaves com o mesmo hash inicial percorrem exatamente o mesmo caminho de saltos.
+        `,
+        'DOUBLE': `
+            <strong>🔀 HASH DUPLO (DOUBLE HASHING)</strong><br><br>
+            <strong>Implementação:</strong> Requer duas funções hash independentes ($h_1$ e $h_2$).<br>
+            <strong>Funcionamento:</strong> O salto é calculado pelo próprio dado: <code>passo = h2(k)</code>. Próximo índice: <code>(index + passo) % N</code>.<br>
+            <strong>Análise Técnica:</strong><br>
+            <span style="color:#50fa7b">✔</span> Distribuição mais uniforme possível. Minimiza drasticamente colisões.<br>
+            <span style="color:#ff5555">✘</span> Cálculo mais custoso (duas funções hash por operação).
+        `
     };
 
     const LAB_GUIDES = {
-        'INITIAL': "<strong>👋 Bem-vindo ao Laboratório!</strong><br>O monitor está aguardando. Para começar a observação, vá ao painel de <strong>CONTROLES (Direita)</strong> e selecione um <strong>Algoritmo de Hash</strong>.",
-        'CHAINING': "<strong>🧪 MODO DE OBSERVAÇÃO: Encadeamento.</strong><br>Adicione itens e veja como o algoritmo lida com a falta de espaço: em vez de buscar outro lugar, ele cria uma 'fila' (lista) no próprio slot. Ideal para tabelas muito cheias.",
-        'LINEAR': "<strong>🧪 MODO DE OBSERVAÇÃO: Sondagem Linear.</strong><br>Observe o comportamento de 'estacionamento': se o slot calculado estiver ocupado, o item tentará o próximo vizinho (+1) repetidamente até encontrar uma vaga. Note como isso pode criar aglomerados.",
-        'QUADRATIC': "<strong>🧪 MODO DE OBSERVAÇÃO: Sondagem Quadrática.</strong><br>Para evitar bairros lotados, este algoritmo usa saltos matemáticos maiores (+1², +4, +9...) a cada colisão. Veja como os itens se espalham de forma mais espaçada pela mesa.",
-        'DOUBLE': "<strong>🧪 MODO DE OBSERVAÇÃO: Hash Duplo.</strong><br>O método mais sofisticado. Cada item tem uma 'personalidade' matemática própria (H2) que define o tamanho do seu pulo em caso de colisão. Isso elimina quase totalmente os aglomerados."
+        'INITIAL': `
+            <strong>👋 Olá! Bem-vindo ao Laboratório.</strong><br>
+            Imagine que esta tela é um "estacionamento de dados". Para começar a guardar informações aqui, escolha um <strong>Método de Organização (Protocolo)</strong> no menu à direita.
+        `,
+        'CHAINING': `
+            <strong>🧪 MODO: ENCADEAMENTO (A TÉCNICA DA "LISTA")</strong><br>
+            <strong>A Ideia:</strong> Imagine uma gaveta de arquivos. Se a gaveta encher, nós não procuramos outra; nós simplesmente amarramos um saquinho nela e colocamos o arquivo lá.<br>
+            <strong>O que observar:</strong> Veja como os itens se empilham verticalmente. O slot nunca "entope", ele apenas cria uma fila maior.
+        `,
+        'LINEAR': `
+            <strong>🧪 MODO: SONDAGEM LINEAR (O VIZINHO MAIS PRÓXIMO)</strong><br>
+            <strong>A Ideia:</strong> Igual a estacionar o carro em dia de show. Se a sua vaga favorita está ocupada, você tenta a imediatamente ao lado. Se estiver ocupada também, tenta a próxima, e a próxima...<br>
+            <strong>O que observar:</strong> Veja como se formam "bloquinhos" sólidos de dados. Isso é ruim, pois quem chega depois tem que andar muito para achar vaga.
+        `,
+        'QUADRATIC': `
+            <strong>🧪 MODO: SONDAGEM QUADRÁTICA (O PULO DO CANGURU)</strong><br>
+            <strong>A Ideia:</strong> Para evitar a aglomeração do método Linear, aqui se a vaga está cheia, nós damos um pulo pequeno, depois um médio, depois um gigante.<br>
+            <strong>O que observar:</strong> Note como os itens ficam mais espalhados pela mesa, evitando criar aquelas "paredes" de dados ocupados.
+        `,
+        'DOUBLE': `
+            <strong>🧪 MODO: HASH DUPLO (SALTO PERSONALIZADO)</strong><br>
+            <strong>A Ideia:</strong> Aqui, cada dado tem um "número da sorte". Se ocorrer uma colisão, o dado usa esse número para decidir o tamanho do seu pulo.<br>
+            <strong>O que observar:</strong> É o método mais caótico e eficiente. Mesmo que dois itens batam na mesma vaga, eles vão para lugares totalmente diferentes logo em seguida.
+        `
     };
 
     // --- STATE ---
@@ -81,8 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let coins = 0;
     let currentQuestData = null;
     let bag = [];
-    
-    // VARIÁVEIS DE PONTUAÇÃO
     let questStartTime = 0;
     let questTestUsed = false;
 
@@ -108,10 +159,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvas.onmousedown = (e) => {
         const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const my = (e.clientY - rect.top) * scaleY;
+        
         for(let item of bag) {
-            if(item.state === 'WAITING' && Math.hypot(mx - item.x, my - item.y) < 30) {
+            if(item.state === 'WAITING' && Math.hypot(mx - item.x, my - item.y) < 50) {
                 shelf.startProcess(item); break;
             }
         }
@@ -158,106 +212,154 @@ document.addEventListener('DOMContentLoaded', () => {
         infoQuest.classList.remove('hidden');
     }
 
-    // --- QUEST SYSTEM (LÓGICA AJUSTADA) ---
-
+    // --- QUEST SYSTEM ---
     function startRandomQuest() {
         resetEverything(false);
-        
-        // 1. Gera missão dinâmica
         currentQuestData = generateDynamicQuest();
-        
-        // 2. Reseta variaveis de pontuação
         questTestUsed = false;
         questStartTime = Date.now();
 
-        // 3. Atualiza ajuda visual
         if (ALGO_DESCRIPTIONS[currentQuestData.algoMode]) {
             algoInfoBox.innerHTML = ALGO_DESCRIPTIONS[currentQuestData.algoMode];
         }
 
-        // 4. Configura UI
         questOverlay.classList.add('hidden');
         questFeedback.classList.add('hidden');
         questText.innerHTML = currentQuestData.text;
         btnTestQuest.disabled = false;
         
         questOptionsContainer.innerHTML = '';
-        const opts = [...currentQuestData.options].sort(() => Math.random() - 0.5);
+        
+        let opts = [...currentQuestData.options];
+        if (currentQuestData.type === 'RESIZE') opts.sort((a,b) => a - b);
+        else opts.sort(() => Math.random() - 0.5);
+
         opts.forEach(opt => {
             const btn = document.createElement('button');
             btn.className = 'quiz-btn';
-            btn.innerText = `👉 Slot ${opt}`;
+            if (currentQuestData.type === 'RESIZE') btn.innerText = `📏 Novo Tamanho: ${opt}`;
+            else btn.innerText = `👉 Slot ${opt}`;
             btn.onclick = () => checkAnswer(opt, btn);
             questOptionsContainer.appendChild(btn);
         });
 
         currentQuestData.setup();
+        addLogHeader(`⚔️ MISSÃO INICIADA: ${currentQuestData.algoMode}`);
     }
 
     function generateDynamicQuest() {
+        const missionType = Math.random() > 0.3 ? 'COLLISION' : 'RESIZE';
         const types = ['LINEAR', 'QUADRATIC', 'DOUBLE'];
-        const type = types[Math.floor(Math.random() * types.length)];
+        const algoType = types[Math.floor(Math.random() * types.length)];
         const tblSize = 10; 
         
-        // Escolhe slot para colidir e item visual aleatório
-        const occupiedSlot = Math.floor(Math.random() * tblSize);
-        const itemVisuals = ['sword', 'hp', 'mp'];
-        const visualOccupier = itemVisuals[Math.floor(Math.random() * itemVisuals.length)];
-        
-        // Setup da mesa
-        const setupFunc = () => {
-            TABLE_SIZE = tblSize; 
-            GAME_MODE = type;
-            // Cria item ocupante
-            bag.push(new Item(occupiedSlot, visualOccupier, 100, 640)); 
-            shelf.startProcess(bag[0]);
-        };
+        if (missionType === 'COLLISION') {
+            const occupiedSlot = Math.floor(Math.random() * tblSize);
+            const itemVisuals = ['cube', 'sphere', 'prism'];
+            const visualOccupier = itemVisuals[Math.floor(Math.random() * itemVisuals.length)];
+            
+            const setupFunc = () => {
+                TABLE_SIZE = tblSize; 
+                GAME_MODE = algoType;
+                const obstacle = new Item(occupiedSlot, visualOccupier, 100, SCANNER_POS.y);
+                bag.push(obstacle); 
+                shelf.startProcess(obstacle);
+            };
 
-        // Item de Teste (Pergunta)
-        const testId = (Math.floor(Math.random() * 5) + 1) * tblSize + occupiedSlot;
-        const visualTest = itemVisuals[Math.floor(Math.random() * itemVisuals.length)];
-        
-        let questionText = "";
-        let correctAnswer = -1;
+            const testId = (Math.floor(Math.random() * 5) + 1) * tblSize + occupiedSlot;
+            const visualTest = itemVisuals[Math.floor(Math.random() * itemVisuals.length)];
+            
+            let questionText = "";
+            let correctAnswer = -1;
 
-        if (type === 'LINEAR') {
-            correctAnswer = (occupiedSlot + 1) % tblSize;
-            questionText = `Modo <strong>Linear Probing</strong>.<br>O Slot <strong>${occupiedSlot}</strong> está ocupado.<br>Onde o item <strong>${testId}</strong> (Hash ${occupiedSlot}) será inserido?`;
-        } 
-        else if (type === 'QUADRATIC') {
-            correctAnswer = (occupiedSlot + 1) % tblSize; 
-            questionText = `Modo <strong>Sondagem Quadrática</strong> (+i²).<br>O Slot <strong>${occupiedSlot}</strong> colidiu.<br>O item <strong>${testId}</strong> tentará o salto $1^2$. Qual o destino?`;
-        } 
-        else if (type === 'DOUBLE') {
-            const h2 = 7 - (testId % 7);
-            correctAnswer = (occupiedSlot + h2) % tblSize;
-            questionText = `Modo <strong>Hash Duplo</strong>.<br>H1 colidiu no slot <strong>${occupiedSlot}</strong>.<br>Sabendo que <em>H2 = 7 - (${testId} % 7) = ${h2}</em>.<br>Qual o próximo slot (Índice + H2)?`;
+            if (algoType === 'LINEAR') {
+                correctAnswer = (occupiedSlot + 1) % tblSize;
+                questionText = `
+                    <div style="font-size:14px; color:#8be9fd; margin-bottom:5px">ALGORITMO: LINEAR PROBING</div>
+                    O Slot <strong>${occupiedSlot}</strong> já está ocupado.<br>
+                    O sistema tenta inserir o ID <strong>${testId}</strong> (Hash ${occupiedSlot}).<br>
+                    Usando a regra de <strong>+1</strong>, em qual índice ele será alocado?
+                `;
+            } 
+            else if (algoType === 'QUADRATIC') {
+                correctAnswer = (occupiedSlot + 1) % tblSize; 
+                questionText = `
+                    <div style="font-size:14px; color:#8be9fd; margin-bottom:5px">ALGORITMO: SONDAGEM QUADRÁTICA</div>
+                    Houve colisão no Slot <strong>${occupiedSlot}</strong>.<br>
+                    O protocolo diz para tentar: <code>(Indice + 1²)</code>.<br>
+                    Qual será o destino final do item <strong>${testId}</strong>?
+                `;
+            } 
+            else if (algoType === 'DOUBLE') {
+                const h2 = 7 - (testId % 7);
+                correctAnswer = (occupiedSlot + h2) % tblSize;
+                questionText = `
+                    <div style="font-size:14px; color:#8be9fd; margin-bottom:5px">ALGORITMO: HASH DUPLO</div>
+                    O Slot <strong>${occupiedSlot}</strong> colidiu.<br>
+                    O salto deste item é calculado por <code>H2 = 7 - (${testId} % 7)</code>.<br>
+                    Sabendo que o salto deu <strong>${h2}</strong>, onde o item cai?
+                `;
+            }
+
+            const opts = new Set([correctAnswer]);
+            while(opts.size < 4) {
+                const rnd = Math.floor(Math.random() * tblSize);
+                if (rnd !== correctAnswer) opts.add(rnd);
+            }
+
+            return {
+                algoMode: algoType,
+                text: questionText,
+                setup: setupFunc,
+                testItem: { id: testId, type: visualTest },
+                correct: correctAnswer,
+                options: Array.from(opts),
+                type: 'COLLISION'
+            };
+        } else {
+            const currentItems = 7; 
+            const setupFunc = () => {
+                TABLE_SIZE = 10;
+                GAME_MODE = 'LINEAR'; 
+                for(let i=0; i<currentItems; i++) {
+                    const it = new Item(i, 'cube', 100, SCANNER_POS.y);
+                    it.state = 'STORED';
+                    it.finalSlotIndex = i;
+                    shelf.slots[i].push(it);
+                    shelf.itemsCount++;
+                }
+                updateStats();
+            };
+
+            const questionText = `
+                <div style="font-size:14px; color:#ff79c6; margin-bottom:5px">PROTOCOLO: GERENCIAMENTO DE MEMÓRIA</div>
+                A tabela atual tem tamanho <strong>N=10</strong>.<br>
+                O Fator de Carga Máximo é <strong>0.7 (70%)</strong>.<br>
+                Já existem <strong>7 itens</strong> armazenados.<br>
+                Se tentarmos inserir mais UM item, o que acontece com o tamanho N?
+            `;
+
+            return {
+                algoMode: 'LINEAR', 
+                text: questionText,
+                setup: setupFunc,
+                testItem: { id: 99, type: 'sphere' }, 
+                correct: 20, 
+                options: [10, 11, 20, 100],
+                type: 'RESIZE'
+            };
         }
-
-        const opts = new Set([correctAnswer]);
-        while(opts.size < 4) {
-            opts.add(Math.floor(Math.random() * tblSize));
-        }
-
-        return {
-            algoMode: type,
-            text: questionText,
-            setup: setupFunc,
-            testItem: { id: testId, type: visualTest }, // Tipo visual aleatório
-            correct: correctAnswer,
-            options: Array.from(opts)
-        };
     }
 
     function testQuestHypothesis() {
         if (!currentQuestData) return;
-        
-        // MARCA O USO DO TESTE (PENALIDADE)
         questTestUsed = true;
-        
         const t = currentQuestData.testItem;
-        bag.push(new Item(t.id, t.type, 450, SCANNER_POS.y));
+        const testItem = new Item(t.id, t.type, 450, SCANNER_POS.y + 50); 
+        bag.push(testItem);
+        shelf.startProcess(testItem);
         btnTestQuest.disabled = true;
+        addLogHeader(`🧪 TESTE EXECUTADO: ID ${t.id}`);
     }
 
     function checkAnswer(selected, btnElement) {
@@ -265,27 +367,18 @@ document.addEventListener('DOMContentLoaded', () => {
         questFeedback.classList.remove('hidden');
         
         if (isCorrect) {
-            // LÓGICA DE PONTUAÇÃO
             const timeTaken = (Date.now() - questStartTime) / 1000;
-            const isFast = timeTaken <= 15; // 15 segundos para bônus
-            
-            let points = 100; // Base
+            const isFast = timeTaken <= 15; 
+            let points = 100;
             let msg = "";
 
-            if (isFast) {
-                points += 50;
-                msg += "⚡ Rápido! (+50) ";
-            }
-            
-            if (questTestUsed) {
-                points = points / 2; // Penalidade de 50%
-                msg += "🧪 Teste usado (50%) ";
-            }
+            if (isFast) { points += 50; msg += "⚡ Bônus de Tempo (+50) "; }
+            if (questTestUsed) { points = points / 2; msg += "🧪 Teste usado (50%) "; }
 
             coins += points;
             coinVal.innerText = coins;
             
-            questFeedback.innerHTML = `✅ CORRETO! Ganhou ${points} Moedas.<br><span style="font-size:11px; color:#aaa">${msg}</span>`;
+            questFeedback.innerHTML = `✅ CORRETO! Ganhou ${points} Pontos.<br><span style="font-size:11px; color:#aaa">${msg}</span>`;
             questFeedback.className = "feedback-box correct";
             
             Array.from(questOptionsContainer.children).forEach(b => b.disabled = true);
@@ -294,23 +387,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 questOverlay.classList.remove('hidden');
             }, 1500);
         } else {
-            // ERRO: 0 PONTOS
-            questFeedback.innerHTML = `❌ INCORRETO! A resposta era Slot ${currentQuestData.correct}.<br><span style="font-size:11px">Sem moedas desta vez.</span>`;
+            let errorMsg = `A resposta correta era <strong>${currentQuestData.correct}</strong>.`;
+            if (currentQuestData.type === 'RESIZE') errorMsg = "A tabela dobra de tamanho (20) ao atingir a carga.";
+
+            questFeedback.innerHTML = `❌ ERROU! ${errorMsg}<br><span style="font-size:11px">Sem pontos desta vez.</span>`;
             questFeedback.className = "feedback-box wrong";
             Array.from(questOptionsContainer.children).forEach(b => b.disabled = true);
             
             setTimeout(() => {
                 btnCenterQuest.innerText = "TENTAR OUTRA MISSÃO ↻";
                 questOverlay.classList.remove('hidden');
-            }, 1500);
+            }, 2500);
         }
     }
 
     // --- LAB LOGIC ---
     function addBatch(count) {
-        if (!GAME_MODE) return;
+        if (!GAME_MODE) { alert("⚠️ Selecione um Protocolo (Algoritmo) no menu acima primeiro!"); return; }
         const newItems = [];
-        const visuals = ['sword', 'hp', 'mp'];
+        const visuals = ['cube', 'sphere', 'prism'];
         for(let i=0; i<count; i++) {
             const id = Math.floor(Math.random() * 1000);
             const type = visuals[Math.floor(Math.random() * visuals.length)];
@@ -321,22 +416,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function addSingleRandomItem() {
-        if (!GAME_MODE) return;
+        if (!GAME_MODE) { alert("⚠️ Selecione um Protocolo (Algoritmo) no menu acima primeiro!"); return; }
         const id = Math.floor(Math.random() * 1000);
-        const visuals = ['sword', 'hp', 'mp'];
+        const visuals = ['cube', 'sphere', 'prism'];
         const type = visuals[Math.floor(Math.random() * visuals.length)];
         savedBatch.push({id, type}); spawnItems([{id, type}]);
         sessionItemsProcessed++;
     }
 
     function forceCollision() {
-         if (!GAME_MODE) return;
+         if (!GAME_MODE) return alert("Selecione um Algoritmo primeiro.");
          let occupied = [];
          for(let i=0; i<TABLE_SIZE; i++) { if(shelf.slots[i].length > 0) occupied.push(i); }
          if(occupied.length===0) return alert("Mesa vazia! Adicione itens primeiro.");
          const target = occupied[Math.floor(Math.random()*occupied.length)];
          const newID = (Math.floor(Math.random()*50)+1)*TABLE_SIZE + target;
-         savedBatch.push({id:newID, type:'sword'}); spawnItems([{id:newID, type:'sword'}]);
+         savedBatch.push({id:newID, type:'cube'}); spawnItems([{id:newID, type:'cube'}]);
          sessionItemsProcessed++;
          addLogHeader(`💥 COLISÃO FORÇADA (Alvo: ${target})`);
     }
@@ -351,10 +446,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function spawnItems(itemsData) {
-        itemsData.forEach(data => {
-            const startX = 100 + Math.random() * 700;
-            const startY = SCANNER_POS.y + (Math.random() * 40 - 20); 
-            bag.push(new Item(data.id, data.type, startX, startY));
+        itemsData.forEach((data, index) => {
+            // CORREÇÃO: Nasce EXATAMENTE no scanner, coordenadas seguras
+            const startX = SCANNER_POS.x; 
+            const startY = SCANNER_POS.y; 
+            
+            const newItem = new Item(data.id, data.type, startX, startY);
+            bag.push(newItem);
+            
+            // Delay sequencial
+            setTimeout(() => {
+                shelf.startProcess(newItem);
+            }, index * 300);
         });
     }
 
@@ -365,9 +468,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function showReport() {
         repAlgo.innerText = GAME_MODE; repItems.innerText = sessionItemsProcessed; repCol.innerText = sessionCollisions;
         const ratio = sessionItemsProcessed > 0 ? (sessionCollisions/sessionItemsProcessed) : 0;
-        let efficiency = "EXCELENTE"; let color = "#4caf50";
-        if (ratio > 0.5) { efficiency = "REGULAR"; color = "#ffca28"; }
-        if (ratio > 1.0) { efficiency = "BAIXA (Muitas Colisões)"; color = "#ff5252"; }
+        let efficiency = "EXCELENTE"; let color = "#50fa7b";
+        if (ratio > 0.5) { efficiency = "REGULAR"; color = "#f1fa8c"; }
+        if (ratio > 1.0) { efficiency = "BAIXA (Muitas Colisões)"; color = "#ff5555"; }
         repScore.innerText = efficiency; repScore.style.color = color;
         repDesc.innerText = `Média: ${ratio.toFixed(2)} colisões/item`;
         reportModal.classList.remove('hidden');
@@ -379,21 +482,14 @@ document.addEventListener('DOMContentLoaded', () => {
         bag = []; savedBatch = []; TABLE_SIZE = 10; clearLog();
         shelf = new MagicShelf(); sessionCollisions = 0; sessionItemsProcessed = 0; 
         updateStats(); updateLayoutMetrics();
-        if (fullReset) {
-            // Reset UI specific if needed
-        }
+        if (fullReset) { /* Reset UI */ }
     }
 
     function handleAlgoChange() {
         GAME_MODE = selectAlgo.value;
         enableControls();
-        
-        if (ALGO_DESCRIPTIONS[GAME_MODE]) {
-            algoInfoBox.innerHTML = ALGO_DESCRIPTIONS[GAME_MODE];
-        }
-
+        if (ALGO_DESCRIPTIONS[GAME_MODE]) algoInfoBox.innerHTML = ALGO_DESCRIPTIONS[GAME_MODE];
         updateTopPanelForLab();
-
         bag = []; TABLE_SIZE = 10; shelf = new MagicShelf(); clearLog();
         sessionCollisions = 0; sessionItemsProcessed = 0; 
         updateStats(); updateLayoutMetrics();
@@ -407,14 +503,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function enableControls() {
         btnBatch.disabled = false; btnAddSingle.disabled = false; btnUndo.disabled = false; 
         btnReport.disabled = false; btnCollision.disabled = false;
-        logContent.innerHTML = '<div style="color:#555;text-align:center;margin-top:20px;">Laboratório Ativo.</div>';
+        logContent.innerHTML = '<div style="color:#6272a4;text-align:center;margin-top:20px;">Laboratório Ativo.</div>';
     }
     
     function clearLog() { logContent.innerHTML = ''; }
     function addLogHeader(text) {
         const div = document.createElement('div');
-        div.style.padding = "8px"; div.style.borderBottom = "1px solid #333";
-        div.style.color = "#aaa"; div.style.textAlign = "center"; div.style.fontSize = "11px";
+        div.style.padding = "8px"; div.style.borderBottom = "1px solid #44475a";
+        div.style.color = "#6272a4"; div.style.textAlign = "center"; div.style.fontSize = "11px";
         div.innerText = text; logContent.prepend(div);
     }
     function addLogEntry(item, slot, col, formula, detail) {
@@ -431,20 +527,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if(el) el.remove();
     }
 
+    // --- LAYOUT ---
     function updateLayoutMetrics() {
-        if (TABLE_SIZE <= 10) { SLOT_W = 64; currentSlotGap = 15; GRID_COLS = 5; } 
-        else { SLOT_W = 32; currentSlotGap = 5; GRID_COLS = 10; }
-        if (GAME_MODE === 'CHAINING') {
-            GRID_COLS = TABLE_SIZE; 
-            const availableWidth = canvas.width - 60;
-            SLOT_W = Math.min(64, Math.max(20, (availableWidth / TABLE_SIZE) - 5));
-            currentSlotGap = 5;
-        }
+        GRID_COLS = 10; 
+        const availableWidth = 900; 
+        const totalGap = (GRID_COLS - 1) * 10;
+        const maxSlotW = (availableWidth - totalGap) / GRID_COLS;
+        SLOT_W = Math.min(64, Math.max(30, maxSlotW));
+        currentSlotGap = 10;
     }
 
     function getSlotScreenPos(index) {
-        const col = index % GRID_COLS; const row = Math.floor(index / GRID_COLS);
-        const totalW = GRID_COLS * SLOT_W + (GRID_COLS-1)*currentSlotGap;
+        const col = index % GRID_COLS;
+        const row = Math.floor(index / GRID_COLS);
+        const totalW = GRID_COLS * SLOT_W + (GRID_COLS-1) * currentSlotGap;
         const startX = (canvas.width - totalW) / 2;
         const x = startX + col * (SLOT_W + currentSlotGap);
         const y = SHELF_START_Y + row * (SLOT_W + currentSlotGap + 15);
@@ -456,29 +552,51 @@ document.addEventListener('DOMContentLoaded', () => {
         const load = shelf.itemsCount/TABLE_SIZE;
         uiLoad.innerText = (load*100).toFixed(0) + "%";
         uiBar.style.width = Math.min(load*100, 100) + "%";
-        uiBar.style.backgroundColor = load > 0.7 ? "#ff5252" : "#4fc3f7";
+        uiBar.style.backgroundColor = load > 0.7 ? "#ff5555" : "#50fa7b";
     }
 
-    // --- CLASSES ---
+    // --- ARTE DRACULA (SÓLIDA E VISÍVEL) ---
     const Art = {
-        drawPotion: (x, y, color, scale = 1) => {
-            const r = 16 * scale; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.beginPath(); ctx.arc(x-r*0.3, y-r*0.3, r*0.4, 0, Math.PI*2); ctx.fill();
+        drawDataCube: (x, y, color, scale = 1) => {
+            const s = 30 * scale;
+            // Preenchimento Sólido com leve transparência
+            ctx.fillStyle = color; 
+            ctx.fillRect(x - s/2, y - s/2, s, s);
+            
+            // Borda Branca
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+            ctx.strokeRect(x - s/2, y - s/2, s, s);
+            
+            // Detalhe interno escuro
+            ctx.fillStyle = "rgba(0,0,0,0.5)"; 
+            ctx.fillRect(x - s/4, y - s/4, s/2, s/2);
         },
-        drawSword: (x, y, scale = 1) => {
-            ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.rotate(Math.PI/4);
-            ctx.fillStyle = "#cfd8dc"; ctx.fillRect(-4, -20, 8, 40); ctx.fillStyle = "#3e2723"; ctx.fillRect(-4, 20, 8, 12);
-            ctx.fillStyle = "#ffca28"; ctx.fillRect(-10, 16, 20, 6); ctx.restore();
+        drawDataSphere: (x, y, color, scale = 1) => {
+            const r = 16 * scale; 
+            ctx.fillStyle = color; 
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
+        },
+        drawDataPrism: (x, y, color, scale = 1) => {
+            const s = 18 * scale;
+            ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s, y + s); ctx.lineTo(x - s, y + s); ctx.closePath();
+            ctx.fillStyle = color; ctx.fill();
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.stroke();
         },
         drawScanner: (x, y, active) => {
-            ctx.fillStyle = "#222"; ctx.beginPath(); ctx.ellipse(x, y + 20, 80, 20, 0, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = active ? "#4fc3f7" : "#555"; ctx.lineWidth = 2; ctx.stroke();
+            const baseColor = active ? "#8be9fd" : "#44475a";
+            ctx.strokeStyle = baseColor; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.ellipse(x, y + 20, 80, 20, 0, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(x, y + 20, 60, 15, 0, 0, Math.PI*2); ctx.stroke();
+            
             if (active) {
                 const grad = ctx.createLinearGradient(x, y+20, x, y-80);
-                grad.addColorStop(0, "rgba(79, 195, 247, 0.2)"); grad.addColorStop(1, "rgba(0, 0, 0, 0)");
-                ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(x-50, y+20); ctx.lineTo(x+50, y+20); ctx.lineTo(x+80, y-100); ctx.lineTo(x-80, y-100); ctx.fill();
+                grad.addColorStop(0, "rgba(139, 233, 253, 0.4)"); grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(x-50, y+20); ctx.lineTo(x+50, y+20); ctx.lineTo(x+60, y-100); ctx.lineTo(x-60, y-100); ctx.fill();
             }
-            ctx.fillStyle = "#888"; ctx.font = "10px monospace"; ctx.textAlign = "center"; ctx.fillText("SCANNER UNIT", x, y + 40);
+            ctx.fillStyle = "#f8f8f2"; ctx.font = "12px Consolas"; ctx.textAlign = "center"; 
+            ctx.fillText(active ? "PROCESSANDO..." : "AGUARDANDO INPUT", x, y + 55);
         }
     };
 
@@ -486,62 +604,55 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor(id, type, x, y) {
             this.id = id; this.type = type; this.x = x; this.y = y;
             this.targetX = x; this.targetY = y; this.state = 'WAITING'; 
-            this.pathQueue = []; this.scanTimer = 0; this.finalSlotIndex = -1; this.collidedThisTurn = 0;
+            this.pathQueue = [];
         }
         update() {
             const dx = this.targetX - this.x; const dy = this.targetY - this.y;
             const dist = Math.hypot(dx, dy);
-            if (this.state === 'TO_SCANNER') {
-                this.x += dx * 0.1; this.y += dy * 0.1;
-                if (dist < 2) { this.state = 'SCANNING'; this.scanTimer = 80; }
-            } else if (this.state === 'SCANNING') {
-                this.scanTimer--;
-                if (this.scanTimer <= 0) shelf.calculatePath(this);
-            } else if (this.state === 'MOVING_PATH') {
-                this.x += dx * 0.25; this.y += dy * 0.25;
-                if (dist < 5) {
-                    if (this.pathQueue.length > 0) {
-                        const nextPoint = this.pathQueue.shift();
-                        this.targetX = nextPoint.x; this.targetY = nextPoint.y;
-                        if (nextPoint.action === 'STORE') {
-                            this.state = 'STORED'; 
-                            shelf.history.push(this); shelf.itemsCount++; shelf.checkResize(); updateStats(); reportItemStored(); 
-                        }
+            
+            if(dist > 1) {
+                this.x += dx * 0.15;
+                this.y += dy * 0.15;
+            }
+
+            if (this.state === 'TO_SCANNER' && dist < 5) {
+                this.state = 'SCANNING'; 
+                setTimeout(() => shelf.calculatePath(this), 500); 
+            } 
+            else if (this.state === 'MOVING_PATH' && dist < 5) {
+                if (this.pathQueue.length > 0) {
+                    const nextPoint = this.pathQueue.shift();
+                    this.targetX = nextPoint.x; this.targetY = nextPoint.y;
+                    if (nextPoint.action === 'STORE') {
+                        this.state = 'STORED'; 
+                        shelf.history.push(this); shelf.itemsCount++; shelf.checkResize(); updateStats(); reportItemStored(); 
                     }
                 }
             }
         }
         draw() {
             const scale = SLOT_W / 64; 
-            if (this.type === 'hp') Art.drawPotion(this.x, this.y, '#e53935', scale);
-            else if (this.type === 'mp') Art.drawPotion(this.x, this.y, '#1e88e5', scale);
-            else Art.drawSword(this.x, this.y, scale);
+            if (this.type === 'cube') Art.drawDataCube(this.x, this.y, '#ff5555', scale); 
+            else if (this.type === 'sphere') Art.drawDataSphere(this.x, this.y, '#8be9fd', scale); 
+            else if (this.type === 'prism') Art.drawDataPrism(this.x, this.y, '#f1fa8c', scale); 
+            else Art.drawDataCube(this.x, this.y, '#6272a4', scale); 
+
             if (SLOT_W > 25) {
-                ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.max(10, 14 * scale)}px Arial`; ctx.textAlign = "center"; ctx.fillText(this.id, this.x, this.y + 5);
+                ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.max(10, 14 * scale)}px monospace`; ctx.textAlign = "center"; 
+                ctx.fillText(this.id, this.x, this.y + 5);
             }
             if (this.state === 'SCANNING') this.drawExplanationBubble();
         }
         drawExplanationBubble() {
-            let bubbleH = 100; let bubbleY = this.y - 80;
-            if (GAME_MODE === 'DOUBLE') { bubbleH = 140; bubbleY = this.y - 120; }
+            let bubbleY = this.y - 60;
             const slotDestino = this.id % TABLE_SIZE;
-            ctx.fillStyle = "rgba(0,0,0,0.9)"; ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.roundRect(this.x - 100, bubbleY - 60, 200, 100, 10); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#aaa"; ctx.font = "14px monospace"; ctx.fillText(`Analisando ID: ${this.id}`, this.x, bubbleY - 35);
-            ctx.font = "bold 20px monospace"; ctx.fillStyle = "#ffd700"; ctx.fillText(`${this.id} % ${TABLE_SIZE} = ${slotDestino}`, this.x, bubbleY);
-            ctx.font = "12px Arial"; ctx.fillStyle = "#4fc3f7";
-            let hint = "Destino Inicial";
-            if(GAME_MODE === 'LINEAR') hint = "Se cheio: Tenta Vizinho (+1)";
-            if(GAME_MODE === 'QUADRATIC') hint = "Se cheio: Tenta Salto (+i²)";
-            if(GAME_MODE === 'DOUBLE') hint = `Salto Duplo: ${7 - (this.id % 7)}`;
-            ctx.fillText(hint, this.x, bubbleY + 25);
-            if (GAME_MODE === 'DOUBLE') {
-                ctx.beginPath(); ctx.moveTo(this.x - 90, bubbleY + 75); ctx.lineTo(this.x + 90, bubbleY + 75);
-                ctx.strokeStyle = "#444"; ctx.lineWidth = 1; ctx.stroke();
-                const primo = 7; const h2 = primo - (this.id % primo);
-                ctx.font = "bold 16px monospace"; ctx.fillStyle = "#e040fb"; ctx.fillText(`${primo} - (${this.id} % ${primo}) = ${h2}`, this.x, bubbleY + 95);
-                ctx.font = "11px Arial"; ctx.fillStyle = "#e040fb"; ctx.fillText(`Tam. do Pulo (Se colidir)`, this.x, bubbleY + 110);
-            }
+            ctx.fillStyle = "rgba(40, 42, 54, 0.9)"; ctx.strokeStyle = "#8be9fd"; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.rect(this.x - 80, bubbleY - 40, 160, 60); ctx.fill(); ctx.stroke();
+            
+            ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; 
+            ctx.fillText(`ID: ${this.id}`, this.x, bubbleY - 20);
+            ctx.fillStyle = "#ff5555"; ctx.font = "bold 14px monospace";
+            ctx.fillText(`Hash: ${slotDestino}`, this.x, bubbleY);
         }
     }
 
@@ -552,56 +663,52 @@ document.addEventListener('DOMContentLoaded', () => {
         checkResize() {
             if(this.isResizing || this.itemsCount/TABLE_SIZE < MAX_LOAD_FACTOR) return;
             this.isResizing = true;
-            
-            alert(`⚠️ LIMITE DE CARGA ATINGIDO!\n\nA tabela precisa crescer de ${TABLE_SIZE} para ${TABLE_SIZE*2} slots. Iniciando Re-Hashing...`);
+            alert(`⚠️ CARGA ALTA! Expandindo memória...`);
             setTimeout(() => {
                 addLogHeader(`⚡ EXPANSÃO: ${TABLE_SIZE} ➔ ${TABLE_SIZE*2} Slots. Re-Hashing...`);
-                TABLE_SIZE *= 2; 
-                updateLayoutMetrics();
-                this.resetSlots();
-                this.itemsCount = 0; 
-                this.history = []; 
+                TABLE_SIZE *= 2; updateLayoutMetrics(); this.resetSlots(); this.itemsCount = 0; this.history = []; 
                 bag.forEach(item => {
-                    item.state = 'WAITING';
-                    item.finalSlotIndex = -1;
-                    item.collidedThisTurn = 0;
-                    item.pathQueue = [];
-                    item.x = item.targetX = SCANNER_POS.x + Math.random()*100 - 50;
-                    item.y = item.targetY = SCANNER_POS.y + (Math.random() * 40 - 20);
-                    setTimeout(() => this.startProcess(item), 500 + Math.random()*2000);
+                    item.state = 'WAITING'; item.pathQueue = [];
+                    item.x = SCANNER_POS.x; item.y = SCANNER_POS.y;
+                    setTimeout(() => this.startProcess(item), 500 + Math.random()*1000);
                 });
-                updateStats(); 
-                this.isResizing = false;
+                updateStats(); this.isResizing = false;
             }, 500);
         }
 
-        startProcess(item) { if(!this.isResizing) { item.state='TO_SCANNER'; item.targetX=SCANNER_POS.x; item.targetY=SCANNER_POS.y; } }
+        startProcess(item) { 
+            if(!this.isResizing) { item.state='TO_SCANNER'; item.targetX=SCANNER_POS.x; item.targetY=SCANNER_POS.y; } 
+        }
+        
         undoLast() {
             if(this.history.length === 0) return alert("Nada para desfazer!");
             const item = this.history.pop();
             const bucket = this.slots[item.finalSlotIndex];
             if(bucket) { const idx = bucket.indexOf(item); if(idx > -1) bucket.splice(idx, 1); }
-            item.state = 'WAITING'; item.finalSlotIndex = -1; item.pathQueue = [];
-            item.x = item.targetX = 100 + Math.random()*700; 
-            item.y = item.targetY = SCANNER_POS.y; 
+            item.state = 'WAITING'; item.pathQueue = [];
+            item.x = SCANNER_POS.x; item.y = SCANNER_POS.y; item.targetX = SCANNER_POS.x; item.targetY = SCANNER_POS.y;
             const sIdx = savedBatch.findIndex(d => d.id === item.id);
             if(sIdx > -1) savedBatch.splice(sIdx, 1);
             this.itemsCount--; sessionItemsProcessed--; sessionCollisions -= item.collidedThisTurn; item.collidedThisTurn = 0;
             updateStats(); removeLogByItemId(item.id);
         }
+
         calculatePath(item) {
             const start = item.id % TABLE_SIZE;
             item.state = 'MOVING_PATH'; item.pathQueue = [];
             let curr = start, i = 0, found = false;
             let cols = 0, detail = "";
             const h2 = (GAME_MODE === 'DOUBLE') ? (7 - (item.id % 7)) : 1;
+            
             if (GAME_MODE === 'CHAINING') {
                 this.slots[start].push(item);
                 const pos = getSlotScreenPos(start);
                 const depth = this.slots[start].length - 1;
-                item.pathQueue.push({x: pos.x, y: pos.y + 10 + (depth*pos.size), action: 'STORE'});
+                item.pathQueue.push({x: pos.x, y: pos.y, action: 'CHECK'});
+                item.pathQueue.push({x: pos.x, y: pos.y + (depth*pos.size), action: 'STORE'});
                 item.finalSlotIndex = start;
                 if(depth > 0) { cols = depth; detail = `Lista (${depth})`; }
+                found = true;
             } else {
                 while(i < TABLE_SIZE*2) {
                     if(GAME_MODE==='LINEAR') curr = (start + i) % TABLE_SIZE;
@@ -613,39 +720,38 @@ document.addEventListener('DOMContentLoaded', () => {
                         this.slots[curr].push(item);
                         item.pathQueue.push({x: pos.x, y: pos.y, action: 'STORE'});
                         found = true; item.finalSlotIndex = curr;
-                        if(i > 0) {
-                            if(GAME_MODE==='LINEAR') detail = `(${start}+${i})%${TABLE_SIZE}`;
-                            else if(GAME_MODE==='QUADRATIC') detail = `(${start}+${i}²)%${TABLE_SIZE}`;
-                            else detail = `(${start}+${i}*${h2})%${TABLE_SIZE}`;
-                        }
+                        if(i > 0) detail = `Colisões: ${i}`;
                         break;
                     }
-                    item.pathQueue.push({x: pos.x, y: pos.y-20, action: 'COLLISION'});
+                    item.pathQueue.push({x: pos.x + (Math.random()*10-5), y: pos.y, action: 'COLLISION'});
                     i++; cols++;
                 }
-                if(!found) { item.state='WAITING'; item.targetY=650; return; }
             }
-            item.collidedThisTurn = cols;
-            sessionCollisions += cols;
             if(CURRENT_MODE === 'SANDBOX') addLogEntry(item, item.finalSlotIndex, cols, `${item.id}%${TABLE_SIZE}`, detail);
             if(item.pathQueue.length > 0) { const f = item.pathQueue.shift(); item.targetX=f.x; item.targetY=f.y; }
         }
+        
         draw() {
             updateLayoutMetrics();
+            ctx.fillStyle = "#8be9fd"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center"; 
+            ctx.fillText(">> ADDRESS_SPACE [RAM] // 0x00...0xFF", canvas.width / 2, SHELF_START_Y - 25);
+
             for(let i=0; i<TABLE_SIZE; i++) {
                 const pos = getSlotScreenPos(i);
                 const s = pos.size;
-                ctx.fillStyle = "#261612"; ctx.fillRect(pos.x-s/2, pos.y-s/2, s, s);
-                ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 2; ctx.strokeRect(pos.x-s/2, pos.y-s/2, s, s);
-                if(s > 25) { ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.font = `${Math.floor(s/2.5)}px Arial`; ctx.textAlign = "center"; ctx.fillText(i, pos.x, pos.y+s/3); }
-                if(GAME_MODE === 'CHAINING') {
-                    const b = this.slots[i];
-                    if(b.length > 1) {
-                         for(let j=1; j<b.length; j++) {
-                             const prevY = (j===1) ? pos.y : b[j-1].y;
-                             ctx.strokeStyle = "#00bcd4"; ctx.beginPath(); ctx.moveTo(b[j].x, b[j].y); ctx.lineTo(b[j].x, prevY+s/2); ctx.stroke();
-                         }
-                    }
+                ctx.fillStyle = "rgba(40, 42, 54, 0.6)"; ctx.fillRect(pos.x-s/2, pos.y-s/2, s, s);
+                ctx.strokeStyle = "#bd93f9"; ctx.lineWidth = 1; 
+                ctx.strokeRect(pos.x-s/2, pos.y-s/2, s, s);
+                if(s > 25) { 
+                    ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; ctx.textAlign = "center"; 
+                    ctx.fillText(i, pos.x, pos.y - s/2 - 5); 
+                }
+                if(GAME_MODE === 'CHAINING' && this.slots[i].length > 1) {
+                     const b = this.slots[i];
+                     for(let j=1; j<b.length; j++) {
+                         ctx.strokeStyle = "#8be9fd"; ctx.lineWidth = 2; ctx.beginPath(); 
+                         ctx.moveTo(b[j-1].x, b[j-1].y); ctx.lineTo(b[j].x, b[j].y); ctx.stroke();
+                     }
                 }
             }
         }
@@ -659,12 +765,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         Art.drawScanner(SCANNER_POS.x, SCANNER_POS.y, bag.some(i => i.state === 'SCANNING'));
         shelf.draw();
-        bag.forEach(i => { i.update(); i.draw(); });
+        bag.forEach(i => { i.update(); i.draw(); }); 
         requestAnimationFrame(loop);
     }
 
     updateTopPanelForLab();
-    
     updateStats();
     updateLayoutMetrics();
     loop();
