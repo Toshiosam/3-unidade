@@ -15,23 +15,18 @@
             <div class="intro-section">
                 <div class="intro-header">Contexto Real</div>
                 <p class="intro-p">
-                    Grandes sistemas (como Bancos de Dados e Motores de Busca) precisam armazenar e recuperar informações instantaneamente. 
-                    Para isso, utilizam <strong>Tabelas de Dispersão (Hash Tables)</strong>.
+                    Grandes sistemas utilizam <strong>Tabelas de Dispersão (Hash Tables)</strong> para armazenar e recuperar informações instantaneamente.
                 </p>
             </div>
-
             <div class="intro-highlight">
-                🛠️ <strong>O OBJETIVO:</strong> Esta ferramenta permite visualizar como diferentes algoritmos matemáticos resolvem o problema da <strong>Colisão</strong> (quando dois itens disputam o mesmo espaço).
+                🛠️ <strong>O OBJETIVO:</strong> Visualizar como algoritmos matemáticos resolvem o problema da <strong>Colisão</strong>.
             </div>
-
             <div class="intro-section">
-                <div class="intro-header">Roteiro de Uso:</div>
-                <div class="intro-step"><span class="intro-icon">1️⃣</span><span>Use o <strong>Switch</strong> para escolher entre Laboratório ou Desafio.</span></div>
-                <div class="intro-step"><span class="intro-icon">2️⃣</span><span>Adicione um <strong>Lote de Dados</strong>.</span></div>
-                <div class="intro-step"><span class="intro-icon">3️⃣</span><span>Analise a eficiência no <strong>Relatório</strong>.</span></div>
+                <div class="intro-header">Novo Layout:</div>
+                <div class="intro-step"><span class="intro-icon">👈</span><span><strong>ESQUERDA:</strong> Leia instruções, logs e perguntas.</span></div>
+                <div class="intro-step"><span class="intro-icon">👉</span><span><strong>DIREITA:</strong> Escolha algoritmos e clique nos botões.</span></div>
             </div>
-            
-            <button class="btn-start" id="btnStartIntro">INICIAR SIMULAÇÃO</button>
+            <button class="btn-start" id="btnStartIntro">ENTENDI</button>
         </div>
     </div>
 
@@ -39,11 +34,9 @@
         <div class="modal-content">
             <div class="modal-title">📄 Relatório de Eficiência</div>
             <div class="modal-subtitle">Dados da Sessão Atual</div>
-            
             <div class="report-row"><span>Algoritmo:</span> <span class="report-val" id="rep-algo">-</span></div>
             <div class="report-row"><span>Itens Inseridos:</span> <span class="report-val" id="rep-items">0</span></div>
             <div class="report-row"><span>Total de Colisões:</span> <span class="report-val" id="rep-col" style="color:#ffca28">0</span></div>
-            
             <div class="efficiency-box">
                 <div style="font-size: 10px; color:#aaa;">DIAGNÓSTICO</div>
                 <div class="eff-score" id="rep-score">-</div>
@@ -56,7 +49,7 @@
     <div id="left-sidebar">
         <h2>
             🔮 GRIMÓRIO
-            <button class="help-btn" id="btnHelp" title="Ver Instruções">?</button>
+            <button class="help-btn" id="btnHelp" title="Ajuda">?</button>
         </h2>
 
         <div class="mode-switch-container sandbox" id="modeSwitch">
@@ -64,58 +57,8 @@
             <div class="mode-option opt-sb">🧪 Lab</div>
             <div class="mode-option opt-qs">⚔️ Quest</div>
         </div>
-        
-        <div class="control-group">
-            <label>📜 Feitiço (Algoritmo)</label>
-            <select id="algoSelect">
-                <option value="" disabled selected>-- SELECIONE --</option>
-                <option value="CHAINING">Encadeamento (Listas)</option>
-                <option value="LINEAR">Sondagem Linear (+1)</option>
-                <option value="QUADRATIC">Sondagem Quadrática (+i²)</option>
-                <option value="DOUBLE">Hash Duplo (H2)</option>
-            </select>
-        </div>
 
-        <div id="controls-lab">
-            <div class="control-group">
-                <label>🧪 Laboratório</label>
-                <button id="btnBatch" class="btn-batch" disabled>🎲 Adicionar Lote (10 Itens)</button>
-                <button id="btnReport" class="btn-report" disabled>📄 Ver Relatório Atual</button>
-            </div>
-            <div class="control-group">
-                <label>⚡ Ajustes</label>
-                <button id="btnAddSingle" disabled>➕ Add 1 Item Avulso</button>
-                <button id="btnCollision" class="btn-collision" disabled>💥 Gerar Colisão Forçada</button>
-                <button id="btnUndo" class="btn-undo" disabled>↩️ Desfazer Último</button>
-                <button id="btnClear" class="btn-clear">🗑️ Limpar Mesa</button>
-            </div>
-        </div>
-
-        <div id="controls-quest" class="hidden">
-            <div class="control-group">
-                <label>⚔️ Desafios</label>
-                <button id="btnNewQuest" class="btn-quest">📜 Pegar Nova Missão</button>
-                <button id="btnTestQuest" class="btn-test" disabled>👀 Testar Hipótese (Ver)</button>
-            </div>
-            <div class="control-group">
-                <label>Sua Resposta:</label>
-                <div id="quest-options-container">
-                    <div style="font-size:11px; color:#666; text-align:center; padding:10px; border:1px dashed #444;">
-                        Inicie uma missão para ver as opções.
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <div id="game-container">
-        <canvas id="gameCanvas" width="900" height="700"></canvas>
-    </div>
-
-    <div id="right-sidebar">
-        
-        <div id="content-lab">
+        <div id="info-sandbox">
             <div class="stats-box">
                 <div class="stat-row"><span>Tamanho (N):</span> <span id="statSize" class="stat-val">10</span></div>
                 <div class="stat-row"><span>Ocupados:</span> <span id="statItems" class="stat-val">0</span></div>
@@ -126,40 +69,88 @@
 
             <div class="legend-box">
                 <strong>🔬 COMO UTILIZAR:</strong><br>
-                1. Selecione um <strong>Algoritmo</strong>.<br>
-                2. Adicione um <strong>Lote</strong> e observe.<br>
-                3. Abra o <strong>Relatório</strong> manualmente.<br>
-                4. Troque o algoritmo (os dados persistem).<br>
-                5. Use <strong>Repetir Lote</strong> (automático) para comparar.
+                1. Configure o Algoritmo na <strong>Direita</strong>.<br>
+                2. Adicione Itens e observe a mesa.<br>
+                3. Acompanhe o cálculo no Log abaixo.<br>
+                4. Troque o algoritmo para comparar (Replay).
             </div>
 
             <div id="log-header">📝 REGISTRO DE CÁLCULO</div>
             <div id="log-content">
-                <div style="color: #555; text-align: center; margin-top: 20px;">
-                    Selecione um algoritmo para iniciar.
-                </div>
+                <div style="color: #555; text-align: center; margin-top: 20px;">Selecione um algoritmo...</div>
             </div>
         </div>
 
-        <div id="content-quest" class="hidden">
+        <div id="info-quest" class="hidden">
+            <div class="quest-card">
+                <div class="quest-title">PERGAMINHO DE MISSÃO</div>
+                <div id="questText" class="quest-text">Inicie uma missão para ver a pergunta aqui.</div>
+            </div>
+            
+            </div>
+    </div>
+
+    <div id="game-container">
+        
+        <div id="quest-overlay" class="hidden">
+            <button id="btnCenterQuest" class="btn-quest-large">📜 INICIAR NOVA MISSÃO</button>
+        </div>
+
+        <canvas id="gameCanvas" width="900" height="700"></canvas>
+    </div>
+
+    <div id="right-sidebar">
+        <div class="panel-header">🎛️ CONTROLES</div>
+
+        <div id="controls-lab">
+            <div class="control-group">
+                <label>📜 1. Feitiço (Algoritmo)</label>
+                <select id="algoSelect">
+                    <option value="" disabled selected>-- SELECIONE --</option>
+                    <option value="CHAINING">Encadeamento (Listas)</option>
+                    <option value="LINEAR">Sondagem Linear (+1)</option>
+                    <option value="QUADRATIC">Sondagem Quadrática (+i²)</option>
+                    <option value="DOUBLE">Hash Duplo (H2)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>🧪 2. Experimentos</label>
+                <button id="btnBatch" class="btn-batch" disabled>🎲 Adicionar Lote (10)</button>
+                <button id="btnReport" class="btn-report" disabled>📄 Ver Relatório</button>
+            </div>
+
+            <div class="control-group">
+                <label>⚡ 3. Ajustes</label>
+                <button id="btnAddSingle" disabled>➕ Item Avulso</button>
+                <button id="btnCollision" class="btn-collision" disabled>💥 Forçar Colisão</button>
+                <button id="btnUndo" class="btn-undo" disabled>↩️ Desfazer</button>
+                <button id="btnClear" class="btn-clear">🗑️ Limpar Mesa</button>
+            </div>
+        </div>
+
+        <div id="controls-quest" class="hidden">
             <div class="score-board">
                 <span class="score-label">PONTUAÇÃO</span>
                 <div style="font-size: 24px; color: #ffd700;">🪙 <span id="coinVal">0</span></div>
             </div>
 
-            <div id="active-quest-box" class="hidden">
-                <div class="quest-card">
-                    <div class="quest-title">PERGAMINHO DE MISSÃO</div>
-                    <div id="questText" class="quest-text">...</div>
-                </div>
-                <div id="questFeedback" class="feedback-box hidden"></div>
+            <div id="questFeedback" class="feedback-box hidden"></div>
+            
+            <div class="control-group">
+                <label>⚔️ Ferramentas</label>
+                <button id="btnTestQuest" class="btn-test" disabled>🧪 Testar Algoritmo</button>
             </div>
-
-            <div id="no-quest-msg" style="text-align:center; color:#555; margin-top:40px;">
-                Clique em "Pegar Nova Missão" no menu esquerdo.
+            
+            <div class="control-group">
+                <label>Sua Resposta:</label>
+                <div id="quest-options-container">
+                    <div style="font-size:11px; color:#666; text-align:center; padding:10px; border:1px dashed #444;">
+                        Use o botão central para iniciar.
+                    </div>
+                </div>
             </div>
         </div>
-
     </div>
 
     <script src="script.js"></script>
