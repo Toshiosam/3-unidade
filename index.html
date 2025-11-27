@@ -13,20 +13,23 @@
             <div class="modal-title">📚 HashQuest: Laboratório de Dados</div>
             
             <div class="intro-section">
-                <div class="intro-header">Contexto Real</div>
+                <div class="intro-header">O que é isso?</div>
                 <p class="intro-p">
-                    Grandes sistemas utilizam <strong>Tabelas de Dispersão (Hash Tables)</strong> para armazenar e recuperar informações instantaneamente.
+                    Este é um simulador interativo de <strong>Tabelas Hash</strong>. Aqui você pode visualizar exatamente o que acontece dentro da memória do computador quando guardamos dados e ocorrem <strong>colisões</strong>.
                 </p>
             </div>
+
             <div class="intro-highlight">
-                🛠️ <strong>O OBJETIVO:</strong> Visualizar como algoritmos matemáticos resolvem o problema da <strong>Colisão</strong>.
+                ⚡ <strong>COMO USAR:</strong>
+                <div style="margin-top:10px; font-size: 14px; color: #ddd;">
+                    1. Feche esta janela.<br>
+                    2. No menu à <strong>DIREITA</strong>, escolha um <strong>Feitiço (Algoritmo)</strong>.<br>
+                    3. Clique em <strong>"Adicionar Lote"</strong> ou use os botões de teste.<br>
+                    4. Observe o comportamento no centro e os cálculos na esquerda.
+                </div>
             </div>
-            <div class="intro-section">
-                <div class="intro-header">Novo Layout:</div>
-                <div class="intro-step"><span class="intro-icon">👈</span><span><strong>ESQUERDA:</strong> Leia instruções, logs e perguntas.</span></div>
-                <div class="intro-step"><span class="intro-icon">👉</span><span><strong>DIREITA:</strong> Escolha algoritmos e clique nos botões.</span></div>
-            </div>
-            <button class="btn-start" id="btnStartIntro">ENTENDI</button>
+
+            <button class="btn-start" id="btnStartIntro">ACESSAR LABORATÓRIO</button>
         </div>
     </div>
 
@@ -67,7 +70,7 @@
                 <div style="text-align: center; font-size: 10px; color: #666; margin-top: 5px;">Expande se > 0.7</div>
             </div>
 
-            <div class="legend-box">
+            <div class="legend-box" id="algoInfo">
                 <strong>🔬 COMO UTILIZAR:</strong><br>
                 1. Configure o Algoritmo na <strong>Direita</strong>.<br>
                 2. Adicione Itens e observe a mesa.<br>
@@ -80,18 +83,17 @@
                 <div style="color: #555; text-align: center; margin-top: 20px;">Selecione um algoritmo...</div>
             </div>
         </div>
+    </div>
 
+    <div id="game-container">
+        
         <div id="info-quest" class="hidden">
             <div class="quest-card">
                 <div class="quest-title">PERGAMINHO DE MISSÃO</div>
                 <div id="questText" class="quest-text">Inicie uma missão para ver a pergunta aqui.</div>
             </div>
-            
-            </div>
-    </div>
+        </div>
 
-    <div id="game-container">
-        
         <div id="quest-overlay" class="hidden">
             <button id="btnCenterQuest" class="btn-quest-large">📜 INICIAR NOVA MISSÃO</button>
         </div>

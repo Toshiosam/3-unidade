@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const controlsLab = document.getElementById('controls-lab');
     const controlsQuest = document.getElementById('controls-quest');
     const questOverlay = document.getElementById('quest-overlay');
+    const algoInfoBox = document.getElementById('algoInfo');
 
     // UI Elements
     const uiSize = document.getElementById('statSize');
@@ -45,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const repScore = document.getElementById('rep-score');
     const repDesc = document.getElementById('rep-desc');
 
-    // --- CONFIG ---
+    // --- CONFIG & TEXTOS ---
     let TABLE_SIZE = 10;
     let SLOT_W = 64;       
     let GRID_COLS = 10;    
@@ -57,6 +58,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_LOAD_FACTOR = 0.7; 
     let CURRENT_MODE = 'SANDBOX';
 
+    const ALGO_DESCRIPTIONS = {
+        'CHAINING': "<strong>⛓️ Encadeamento (Listas):</strong><br>Cria uma lista encadeada (um 'varal') em cada slot. Se houver colisão, o item é anexado ao final da lista. É robusto para tabelas cheias, mas o acesso fica lento se as listas crescerem demais.",
+        'LINEAR': "<strong>➡️ Sondagem Linear (+1):</strong><br>Se o slot estiver ocupado, tenta o vizinho imediato (+1). É simples e rápido, mas sofre com 'Agrupamento Primário' (bairros lotados), onde colisões atraem ainda mais colisões.",
+        'QUADRATIC': "<strong>⤴️ Sondagem Quadrática (+i²):</strong><br>Em vez de vizinhos, tenta saltos exponenciais (+1², +2², +3²...). Isso espalha os itens e evita os bairros lotados do método Linear, mas é mais complexo matematicamente.",
+        'DOUBLE': "<strong>🔀 Hash Duplo (H2):</strong><br>Usa uma segunda fórmula hash (H2) para calcular um tamanho de salto único para cada item. É o método mais eficiente para 'espalhar' dados em tabelas de endereçamento aberto."
+    };
+
+    const LAB_GUIDES = {
+        'INITIAL': "<strong>👋 Bem-vindo ao Laboratório!</strong><br>O monitor está aguardando. Para começar a observação, vá ao painel de <strong>CONTROLES (Direita)</strong> e selecione um <strong>Algoritmo de Hash</strong>.",
+        'CHAINING': "<strong>🧪 MODO DE OBSERVAÇÃO: Encadeamento.</strong><br>Adicione itens e veja como o algoritmo lida com a falta de espaço: em vez de buscar outro lugar, ele cria uma 'fila' (lista) no próprio slot. Ideal para tabelas muito cheias.",
+        'LINEAR': "<strong>🧪 MODO DE OBSERVAÇÃO: Sondagem Linear.</strong><br>Observe o comportamento de 'estacionamento': se o slot calculado estiver ocupado, o item tentará o próximo vizinho (+1) repetidamente até encontrar uma vaga. Note como isso pode criar aglomerados.",
+        'QUADRATIC': "<strong>🧪 MODO DE OBSERVAÇÃO: Sondagem Quadrática.</strong><br>Para evitar bairros lotados, este algoritmo usa saltos matemáticos maiores (+1², +4, +9...) a cada colisão. Veja como os itens se espalham de forma mais espaçada pela mesa.",
+        'DOUBLE': "<strong>🧪 MODO DE OBSERVAÇÃO: Hash Duplo.</strong><br>O método mais sofisticado. Cada item tem uma 'personalidade' matemática própria (H2) que define o tamanho do seu pulo em caso de colisão. Isso elimina quase totalmente os aglomerados."
+    };
+
     // --- STATE ---
     let savedBatch = []; 
     let currentBatchProcessing = 0; 
@@ -65,6 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let coins = 0;
     let currentQuestData = null;
     let bag = [];
+    
+    // VARIÁVEIS DE PONTUAÇÃO
+    let questStartTime = 0;
+    let questTestUsed = false;
 
     // --- LISTENERS ---
     if(btnStartIntro) btnStartIntro.onclick = () => introModal.classList.add('hidden');
@@ -103,58 +123,59 @@ document.addEventListener('DOMContentLoaded', () => {
             CURRENT_MODE = 'QUEST';
             modeSwitch.classList.remove('sandbox'); modeSwitch.classList.add('quest');
             
-            // Oculta LAB (Esq + Dir)
-            infoSandbox.classList.add('hidden');
-            controlsLab.classList.add('hidden');
-            
-            // Mostra QUEST (Esq + Dir + Centro)
             infoQuest.classList.remove('hidden');
-            controlsQuest.classList.remove('hidden');
             questOverlay.classList.remove('hidden');
+            document.querySelector('#info-quest .quest-title').innerText = "PERGAMINHO DE MISSÃO"; 
             btnCenterQuest.innerText = "📜 INICIAR NOVA MISSÃO";
+            
+            controlsLab.classList.add('hidden');
+            controlsQuest.classList.remove('hidden');
             
             resetEverything(true);
         } else {
             CURRENT_MODE = 'SANDBOX';
             modeSwitch.classList.remove('quest'); modeSwitch.classList.add('sandbox');
             
-            infoQuest.classList.add('hidden');
-            controlsQuest.classList.add('hidden');
             questOverlay.classList.add('hidden');
-            
-            infoSandbox.classList.remove('hidden');
+            controlsQuest.classList.add('hidden');
             controlsLab.classList.remove('hidden');
             
             resetEverything(true);
+            updateTopPanelForLab();
         }
     }
 
-    // --- QUEST SYSTEM ---
-    const QUESTS = [
-        {
-            text: "No <strong>Linear Probing</strong> (Tamanho 10), o slot 5 está ocupado. Onde o item <strong>25</strong> vai cair?",
-            setup: () => {
-                TABLE_SIZE = 10; GAME_MODE = 'LINEAR';
-                bag.push(new Item(15, 'potion', 100, 640)); shelf.startProcess(bag[0]);
-            },
-            testItem: { id: 25, type: 'sword' },
-            correct: 6, options: [5, 6, 7, 2]
-        },
-        {
-            text: "No <strong>Hash Duplo</strong> (H2 = 7-k%7), onde o item <strong>12</strong> cairá se o slot 2 estiver cheio?",
-            setup: () => {
-                TABLE_SIZE = 10; GAME_MODE = 'DOUBLE';
-                bag.push(new Item(22, 'potion', 100, 640)); shelf.startProcess(bag[0]);
-            },
-            testItem: { id: 12, type: 'sword' },
-            correct: 4, options: [2, 3, 4, 9]
+    function updateTopPanelForLab() {
+        if (CURRENT_MODE !== 'SANDBOX') return;
+        const title = document.querySelector('#info-quest .quest-title');
+        const text = document.querySelector('#info-quest .quest-text');
+        title.innerText = "🔬 MONITOR DE LABORATÓRIO";
+        if (GAME_MODE && LAB_GUIDES[GAME_MODE]) {
+            text.innerHTML = LAB_GUIDES[GAME_MODE];
+        } else {
+            text.innerHTML = LAB_GUIDES['INITIAL'];
         }
-    ];
+        infoQuest.classList.remove('hidden');
+    }
+
+    // --- QUEST SYSTEM (LÓGICA AJUSTADA) ---
 
     function startRandomQuest() {
         resetEverything(false);
-        currentQuestData = QUESTS[Math.floor(Math.random() * QUESTS.length)];
         
+        // 1. Gera missão dinâmica
+        currentQuestData = generateDynamicQuest();
+        
+        // 2. Reseta variaveis de pontuação
+        questTestUsed = false;
+        questStartTime = Date.now();
+
+        // 3. Atualiza ajuda visual
+        if (ALGO_DESCRIPTIONS[currentQuestData.algoMode]) {
+            algoInfoBox.innerHTML = ALGO_DESCRIPTIONS[currentQuestData.algoMode];
+        }
+
+        // 4. Configura UI
         questOverlay.classList.add('hidden');
         questFeedback.classList.add('hidden');
         questText.innerHTML = currentQuestData.text;
@@ -173,10 +194,69 @@ document.addEventListener('DOMContentLoaded', () => {
         currentQuestData.setup();
     }
 
+    function generateDynamicQuest() {
+        const types = ['LINEAR', 'QUADRATIC', 'DOUBLE'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const tblSize = 10; 
+        
+        // Escolhe slot para colidir e item visual aleatório
+        const occupiedSlot = Math.floor(Math.random() * tblSize);
+        const itemVisuals = ['sword', 'hp', 'mp'];
+        const visualOccupier = itemVisuals[Math.floor(Math.random() * itemVisuals.length)];
+        
+        // Setup da mesa
+        const setupFunc = () => {
+            TABLE_SIZE = tblSize; 
+            GAME_MODE = type;
+            // Cria item ocupante
+            bag.push(new Item(occupiedSlot, visualOccupier, 100, 640)); 
+            shelf.startProcess(bag[0]);
+        };
+
+        // Item de Teste (Pergunta)
+        const testId = (Math.floor(Math.random() * 5) + 1) * tblSize + occupiedSlot;
+        const visualTest = itemVisuals[Math.floor(Math.random() * itemVisuals.length)];
+        
+        let questionText = "";
+        let correctAnswer = -1;
+
+        if (type === 'LINEAR') {
+            correctAnswer = (occupiedSlot + 1) % tblSize;
+            questionText = `Modo <strong>Linear Probing</strong>.<br>O Slot <strong>${occupiedSlot}</strong> está ocupado.<br>Onde o item <strong>${testId}</strong> (Hash ${occupiedSlot}) será inserido?`;
+        } 
+        else if (type === 'QUADRATIC') {
+            correctAnswer = (occupiedSlot + 1) % tblSize; 
+            questionText = `Modo <strong>Sondagem Quadrática</strong> (+i²).<br>O Slot <strong>${occupiedSlot}</strong> colidiu.<br>O item <strong>${testId}</strong> tentará o salto $1^2$. Qual o destino?`;
+        } 
+        else if (type === 'DOUBLE') {
+            const h2 = 7 - (testId % 7);
+            correctAnswer = (occupiedSlot + h2) % tblSize;
+            questionText = `Modo <strong>Hash Duplo</strong>.<br>H1 colidiu no slot <strong>${occupiedSlot}</strong>.<br>Sabendo que <em>H2 = 7 - (${testId} % 7) = ${h2}</em>.<br>Qual o próximo slot (Índice + H2)?`;
+        }
+
+        const opts = new Set([correctAnswer]);
+        while(opts.size < 4) {
+            opts.add(Math.floor(Math.random() * tblSize));
+        }
+
+        return {
+            algoMode: type,
+            text: questionText,
+            setup: setupFunc,
+            testItem: { id: testId, type: visualTest }, // Tipo visual aleatório
+            correct: correctAnswer,
+            options: Array.from(opts)
+        };
+    }
+
     function testQuestHypothesis() {
         if (!currentQuestData) return;
+        
+        // MARCA O USO DO TESTE (PENALIDADE)
+        questTestUsed = true;
+        
         const t = currentQuestData.testItem;
-        bag.push(new Item(t.id, t.type, 450, 640));
+        bag.push(new Item(t.id, t.type, 450, SCANNER_POS.y));
         btnTestQuest.disabled = true;
     }
 
@@ -185,18 +265,44 @@ document.addEventListener('DOMContentLoaded', () => {
         questFeedback.classList.remove('hidden');
         
         if (isCorrect) {
-            coins += 50; coinVal.innerText = coins;
-            questFeedback.innerHTML = "✅ CORRETO! +50 Moedas";
+            // LÓGICA DE PONTUAÇÃO
+            const timeTaken = (Date.now() - questStartTime) / 1000;
+            const isFast = timeTaken <= 15; // 15 segundos para bônus
+            
+            let points = 100; // Base
+            let msg = "";
+
+            if (isFast) {
+                points += 50;
+                msg += "⚡ Rápido! (+50) ";
+            }
+            
+            if (questTestUsed) {
+                points = points / 2; // Penalidade de 50%
+                msg += "🧪 Teste usado (50%) ";
+            }
+
+            coins += points;
+            coinVal.innerText = coins;
+            
+            questFeedback.innerHTML = `✅ CORRETO! Ganhou ${points} Moedas.<br><span style="font-size:11px; color:#aaa">${msg}</span>`;
             questFeedback.className = "feedback-box correct";
+            
             Array.from(questOptionsContainer.children).forEach(b => b.disabled = true);
             setTimeout(() => {
                 btnCenterQuest.innerText = "PRÓXIMA MISSÃO ➡";
                 questOverlay.classList.remove('hidden');
-            }, 1200);
+            }, 1500);
         } else {
-            questFeedback.innerHTML = "❌ ERROU! Teste na mesa.";
+            // ERRO: 0 PONTOS
+            questFeedback.innerHTML = `❌ INCORRETO! A resposta era Slot ${currentQuestData.correct}.<br><span style="font-size:11px">Sem moedas desta vez.</span>`;
             questFeedback.className = "feedback-box wrong";
-            btnElement.disabled = true;
+            Array.from(questOptionsContainer.children).forEach(b => b.disabled = true);
+            
+            setTimeout(() => {
+                btnCenterQuest.innerText = "TENTAR OUTRA MISSÃO ↻";
+                questOverlay.classList.remove('hidden');
+            }, 1500);
         }
     }
 
@@ -204,9 +310,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function addBatch(count) {
         if (!GAME_MODE) return;
         const newItems = [];
+        const visuals = ['sword', 'hp', 'mp'];
         for(let i=0; i<count; i++) {
             const id = Math.floor(Math.random() * 1000);
-            const type = Math.random() > 0.6 ? 'sword' : 'potion';
+            const type = visuals[Math.floor(Math.random() * visuals.length)];
             newItems.push({id, type}); savedBatch.push({id, type});
         }
         sessionItemsProcessed += count; spawnItems(newItems);
@@ -216,7 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function addSingleRandomItem() {
         if (!GAME_MODE) return;
         const id = Math.floor(Math.random() * 1000);
-        const type = Math.random() > 0.6 ? 'sword' : 'potion';
+        const visuals = ['sword', 'hp', 'mp'];
+        const type = visuals[Math.floor(Math.random() * visuals.length)];
         savedBatch.push({id, type}); spawnItems([{id, type}]);
         sessionItemsProcessed++;
     }
@@ -245,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function spawnItems(itemsData) {
         itemsData.forEach(data => {
             const startX = 100 + Math.random() * 700;
-            const startY = 640 + Math.random() * 50; 
+            const startY = SCANNER_POS.y + (Math.random() * 40 - 20); 
             bag.push(new Item(data.id, data.type, startX, startY));
         });
     }
@@ -279,6 +387,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleAlgoChange() {
         GAME_MODE = selectAlgo.value;
         enableControls();
+        
+        if (ALGO_DESCRIPTIONS[GAME_MODE]) {
+            algoInfoBox.innerHTML = ALGO_DESCRIPTIONS[GAME_MODE];
+        }
+
+        updateTopPanelForLab();
+
         bag = []; TABLE_SIZE = 10; shelf = new MagicShelf(); clearLog();
         sessionCollisions = 0; sessionItemsProcessed = 0; 
         updateStats(); updateLayoutMetrics();
@@ -433,17 +548,33 @@ document.addEventListener('DOMContentLoaded', () => {
     class MagicShelf {
         constructor() { this.resetSlots(); this.itemsCount = 0; this.isResizing = false; this.history = []; }
         resetSlots() { this.slots = Array.from({length: TABLE_SIZE}, () => []); }
+        
         checkResize() {
             if(this.isResizing || this.itemsCount/TABLE_SIZE < MAX_LOAD_FACTOR) return;
             this.isResizing = true;
-            alert(`⚠️ LIMITE DE CARGA ATINGIDO!\n\nA tabela precisa crescer de ${TABLE_SIZE} para ${TABLE_SIZE*2} slots.`);
+            
+            alert(`⚠️ LIMITE DE CARGA ATINGIDO!\n\nA tabela precisa crescer de ${TABLE_SIZE} para ${TABLE_SIZE*2} slots. Iniciando Re-Hashing...`);
             setTimeout(() => {
-                addLogHeader(`⚡ EXPANSÃO: ${TABLE_SIZE} ➔ ${TABLE_SIZE*2} Slots`);
-                TABLE_SIZE *= 2; this.itemsCount = 0; this.history = []; this.resetSlots();
-                bag.forEach(i => { if(i.state==='STORED') { i.state='WAITING'; i.targetX=i.x; i.targetY=50; setTimeout(()=>this.startProcess(i), Math.random()*1000); }});
-                updateStats(); this.isResizing = false;
+                addLogHeader(`⚡ EXPANSÃO: ${TABLE_SIZE} ➔ ${TABLE_SIZE*2} Slots. Re-Hashing...`);
+                TABLE_SIZE *= 2; 
+                updateLayoutMetrics();
+                this.resetSlots();
+                this.itemsCount = 0; 
+                this.history = []; 
+                bag.forEach(item => {
+                    item.state = 'WAITING';
+                    item.finalSlotIndex = -1;
+                    item.collidedThisTurn = 0;
+                    item.pathQueue = [];
+                    item.x = item.targetX = SCANNER_POS.x + Math.random()*100 - 50;
+                    item.y = item.targetY = SCANNER_POS.y + (Math.random() * 40 - 20);
+                    setTimeout(() => this.startProcess(item), 500 + Math.random()*2000);
+                });
+                updateStats(); 
+                this.isResizing = false;
             }, 500);
         }
+
         startProcess(item) { if(!this.isResizing) { item.state='TO_SCANNER'; item.targetX=SCANNER_POS.x; item.targetY=SCANNER_POS.y; } }
         undoLast() {
             if(this.history.length === 0) return alert("Nada para desfazer!");
@@ -451,7 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const bucket = this.slots[item.finalSlotIndex];
             if(bucket) { const idx = bucket.indexOf(item); if(idx > -1) bucket.splice(idx, 1); }
             item.state = 'WAITING'; item.finalSlotIndex = -1; item.pathQueue = [];
-            item.x = item.targetX = 100 + Math.random()*700; item.y = item.targetY = 640;
+            item.x = item.targetX = 100 + Math.random()*700; 
+            item.y = item.targetY = SCANNER_POS.y; 
             const sIdx = savedBatch.findIndex(d => d.id === item.id);
             if(sIdx > -1) savedBatch.splice(sIdx, 1);
             this.itemsCount--; sessionItemsProcessed--; sessionCollisions -= item.collidedThisTurn; item.collidedThisTurn = 0;
@@ -531,7 +663,9 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(loop);
     }
 
+    updateTopPanelForLab();
+    
     updateStats();
-    updateLayoutMetrics(); // FORCE INIT
+    updateLayoutMetrics();
     loop();
 });
